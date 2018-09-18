@@ -38,3 +38,9 @@ float Min(float x, float y)
 	}
 	else return x;
 }
+
+float ABS(float number) 
+{
+	if (number < 0) 
+		return -number;
+}
