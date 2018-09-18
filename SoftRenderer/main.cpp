@@ -133,8 +133,12 @@ void main()
 
 		float lightDiffuse = Dot(n.normalize(), light);
 
-		TGAColor lightColor(lightDiffuse * 255, lightDiffuse * 255, lightDiffuse * 255, 255);
-		Triangle(screen_coords[0], screen_coords[1], screen_coords[2], image, lightColor);
+		if (lightDiffuse > 0) 
+		{
+			TGAColor lightColor(lightDiffuse * 255, lightDiffuse * 255, lightDiffuse * 255, 255);
+			Triangle(screen_coords[0], screen_coords[1], screen_coords[2], image, lightColor);
+		}
+
 	}
 
 	//Interpolation({ 10,10 }, { 70,70 }, image, white);
