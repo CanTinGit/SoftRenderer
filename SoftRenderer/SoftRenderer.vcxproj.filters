@@ -38,5 +38,14 @@
     <ClCompile Include="model.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="geometry.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="refer.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="system.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>
