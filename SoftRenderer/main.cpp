@@ -73,24 +73,6 @@ Matrix LookAt(Vector3f eye, Vector3f center, Vector3f up) {
 	return res;
 }
 
-/////////Matrix to Vector, Vector to Matrix//////////
-Vector3f MatrixToVector(Matrix m)
-{
-	return Vector3f(m[0][0] / m[3][0], m[1][0] / m[3][0], m[2][0] / m[3][0]);
-}
-
-Matrix VectorToMatrix(Vector3f v)
-{
-	Matrix result(4, 1);
-	result[0][0] = v.x;
-	result[1][0] = v.y;
-	result[2][0] = v.z;
-	result[3][0] = 1.0f;
-	return result;
-}
-
-
-
 
 void Line(Vector2f p1, Vector2f p2, TGAImage &image, TGAColor color)
 {

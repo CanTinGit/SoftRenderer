@@ -23,7 +23,7 @@ public:
 };
 
 template <class t> struct Vector3D {
-public :
+public:
 	t x, y, z;
 	Vector3D() : x(0), y(0), z(0) {}
 	Vector3D(t _x, t _y, t _z) : x(_x), y(_y), z(_z) {}
