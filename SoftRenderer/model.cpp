@@ -10,6 +10,14 @@
 #include "model.h"
 
 Model::Model(const char *filename) : verts_(), faces_() {
+	
+	position.x = 0;
+	position.y = 0;
+	position.z = 0;
+	
+	max_radius = 0;
+	int radius = 0;
+
 	std::ifstream in;
 	in.open(filename, std::ifstream::in);
 	if (in.fail()) return;
@@ -23,6 +31,11 @@ Model::Model(const char *filename) : verts_(), faces_() {
 			Vector3f v;
 			for (int i = 0; i < 3; i++) iss >> v[i];
 			verts_.push_back(v);
+			radius = v.x * v.x + v.y*v.y + v.z*v.z;
+			if (radius > max_radius)
+			{
+				max_radius = radius;
+			}
 		}
 		else if (!line.compare(0, 2, "f ")) {
 			std::vector<int> f;
@@ -35,6 +48,7 @@ Model::Model(const char *filename) : verts_(), faces_() {
 			faces_.push_back(f);
 		}
 	}
+	max_radius = std::sqrt(max_radius);
 	std::cerr << "# v# " << verts_.size() << " f# " << faces_.size() << std::endl;
 }
 
@@ -55,4 +69,21 @@ std::vector<int> Model::face(int idx) {
 
 Vector3f Model::vert(int i) {
 	return verts_[i];
+}
+
+void Model::SetPosition(float x, float y, float z)
+{
+	position.x = x;
+	position.y = y;
+	position.z = z;
+}
+
+Vector3f Model::Position()
+{
+	return position;
+}
+
+float Model::Max_Radius()
+{
+	return max_radius;
 }

@@ -1,5 +1,12 @@
 #include<Windows.h>
 #include <tchar.h>
+#include "geometry.h"
+#include "camera.h"
+#include "mymath.h"
+#include "model.h"
+#include <vector>
+
+using namespace std;
 /////////////////////////
 //创建windows窗口////////
 /////////////////////////
@@ -151,6 +158,57 @@ int main()
 	const TCHAR *title = _T("TinyRender");
 	if (Screen_Init(800, 600, title))
 		return -1;
+
+	Model model("obj/cube.obj");
+	Camera my_camera(0, 0, -3);
+	Camera my();
+	
+
+	//将模型坐标转换为世界坐标
+	vector<Vector3f> model_world_coords;
+	for (int i = 0; i < model.nverts(); i++)
+	{
+		Vector3f v = Translate(model.vert[i], model.SetPosition);        //根据模型中心,将其顶点平移至中心左右
+		model_world_coords.push_back(v);
+	}
+
+	//包围球测试
+	SphereTest(model, 100, 10);
+
+	//背面剔除
+	for (int i = 0; i < model.nfaces(); i++)
+	{
+		vector<int> face = model.face(i);
+		vector<Vector3f> ver_face;   
+		for (int j = 0; j < 3; j++)
+		{
+			ver_face.push_back(model.vert(face[j]));            //存储每个三角形的三个顶点,用于计算面法线
+		}
+
+		Vector3f n = (ver_face[2] - ver_face[0]) ^ (ver_face[1] - ver_face[0]);  //三角形两条边叉乘获得面法线
+		//待实现: 面法线点乘相机观察向量来检测当前面是否可见
+
+	}
+
+	//将世界坐标转换为相机坐标
+	vector<Vector3f> model_camera_coords;
+	vector<Vector3f> model_camera_coords_justFinishTranslating;
+	//顶点平移
+	for (int i = 0; i < model.nverts(); i++)	
+	{
+		Vector3f v = Translate(model_world_coords[i], Vector3f(-my_camera.GetPosition().x, -my_camera.GetPosition().y, -my_camera.GetPosition().z));        //将相机平移到世界坐标原点后,同样要对所有模型进行相同的平移
+		model_camera_coords_justFinishTranslating.push_back(v);
+	}
+	//待实现:顶点旋转
+
+	//投影变换
+	vector<Vector3f> viewPort;
+	for (int i = 0; i < model_camera_coords.size(); i++)
+	{	
+		Vector3f v = TransformToViewPort(screen_width, screen_height, model_camera_coords[i]);
+		viewPort.push_back(v);
+	}
+
 	while (TRUE) {
 		
 		Screen_update();

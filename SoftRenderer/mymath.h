@@ -1,6 +1,7 @@
 #pragma once
 
 #include "geometry.h"
+#include "model.h"
 
 #define PI ((float) 3.141592654f)
 #define PI2 ((float)6.283185307f)
@@ -32,5 +33,73 @@ Matrix VectorToMatrix(Vector3f v)
 	result[2][0] = v.z;
 	result[3][0] = 1.0f;
 	return result;
+}
+
+Vector3f Translate(Vector3f vertex, Vector3f model_center)
+{
+	Matrix modelToWorld = Matrix::Identity(4);
+	modelToWorld[3][0] = model_center.x;
+	modelToWorld[3][1] = model_center.y;
+	modelToWorld[3][2] = model_center.z;
+
+	Matrix temp = VectorToMatrix(vertex);
+	temp = temp * modelToWorld;
+	return MatrixToVector(temp);
+}
+
+
+Vector3f TransformToViewPort(float width, float height, Vector3f vertex)
+{
+	Matrix viewport = Matrix::Identity(4);
+	viewport[3][3] = 0;
+	viewport[2][3] = 1;
+	float d = 0.5f * width * 1; //1表示tan(45°),实际应为tan(fov/2);
+	viewport[0][0] = d;
+	viewport[1][1] = d * (float)(width / height);
+
+	Matrix temp = VectorToMatrix(vertex);
+	temp = temp * viewport;
+	return MatrixToVector(temp);
+}
+
+bool SphereTest(Model model, float far_z, float near_z)
+{
+	vector<Vector3f> testPoint;
+	testPoint.push_back(model.Position());
+	testPoint.push_back(Vector3f(model.Position().x, model.Position().y, model.Position().z + model.Max_Radius()));
+	testPoint.push_back(Vector3f(model.Position().x, model.Position().y, model.Position().z - model.Max_Radius()));
+	//testPoint.push_back(Vector3f(model.Position().x, model.Position().y + model.Max_Radius(), model.Position().z ));
+	//testPoint.push_back(Vector3f(model.Position().x, model.Position().y - model.Max_Radius(), model.Position().z ));
+	testPoint.push_back(Vector3f(model.Position().x + model.Max_Radius(), model.Position().y, model.Position().z));
+	testPoint.push_back(Vector3f(model.Position().x - model.Max_Radius(), model.Position().y , model.Position().z));
+
+	for (int i = 0; i < testPoint.size(); i++)
+	{
+		if (!( (testPoint[i].z) >far_z || (testPoint[i].z< near_z) || (fabs(testPoint[i].x) < testPoint[i].z) || (fabs(testPoint[i].y) < testPoint[i].z)))
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+float inline DegToRad(int angle) 
+{
+	return (angle)*PI / 180.0f;
+}
+
+float inline DegToRad(float angle)
+{
+	return (angle)*PI / 180.0f;
+}
+
+float inline RadToDeg(int rads)
+{
+	return (float)rads*180.0f / PI;
+}
+
+float inline DegToRad(float rads)
+{
+	return rads*180.0f / PI;
 }
 
