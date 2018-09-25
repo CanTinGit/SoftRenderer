@@ -7,8 +7,8 @@
 
 class Model {
 private:
-	Vector3f position;
-	std::vector<Vector3f> verts_;
+	Vector4f position;
+	std::vector<Vector4f> verts_;
 	std::vector<std::vector<int> > faces_;
 	float max_radius;
 	Vector3f dir;
@@ -17,9 +17,9 @@ public:
 	~Model();
 	int nverts();
 	int nfaces();
-	Vector3f vert(int i);
+	Vector4f vert(int i);
 	std::vector<int> face(int idx);
 	void SetPosition(float x, float y, float z);
-	Vector3f Position();
+	Vector4f Position();
 	float Max_Radius();
 };

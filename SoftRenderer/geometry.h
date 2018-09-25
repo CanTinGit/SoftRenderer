@@ -8,7 +8,7 @@
 #include <iostream>
 #include <vector>
 #include <assert.h>
-
+template <class t> class Vector4D;
 //////////Vector////////////////
 template <class t> class Vector2D {
 public:
@@ -39,12 +39,20 @@ public:
 		}
 		return *this;
 	}
+	Vector3D<t>& operator =(const Vector4D<t> &v)
+	{
+		x = v.x;
+		y = v.y;
+		z = v.z;
+		return *this;
+	}
 
 	inline Vector3D<t> operator ^(const Vector3D<t> &v) const { return Vector3D<t>(y*v.z - z * v.y, z*v.x - x * v.z, x*v.y - y * v.x); }
 	inline Vector3D<t> operator +(const Vector3D<t> &v) const { return Vector3D<t>(x + v.x, y + v.y, z + v.z); }
 	inline Vector3D<t> operator -(const Vector3D<t> &v) const { return Vector3D<t>(x - v.x, y - v.y, z - v.z); }
 	inline Vector3D<t> operator *(float f)          const { return Vector3D<t>(x*f, y*f, z*f); }
 	inline t       operator *(const Vector3D<t> &v) const { return x * v.x + y * v.y + z * v.z; }
+
 	t& operator [](const int i) { if (i <= 0)return x; else if (i == 1) return y; else return z; }
 	//t       operator *(const Vec3<t> &v) const { return x * v.x + y * v.y + z * v.z; }
 	float norm() const { return std::sqrt(x*x + y * y + z * z); }
@@ -52,13 +60,57 @@ public:
 	template <class > friend std::ostream& operator<<(std::ostream& s, Vector3D<t>& v);
 };
 
+template <class t> struct Vector4D {
+public:
+	t x, y, z,w;
+	Vector4D() : x(0), y(0), z(0),w(1) {}
+	Vector4D(t _x, t _y, t _z,t _w) : x(_x), y(_y), z(_z),w(_w) {}
+	template <class u> Vector4D<t>(const Vector4D<u> &v);
+	Vector4D<t>(const Vector4D<t> &v) : x(t()), y(t()), z(t()) { *this = v; }
+	Vector4D<t> & operator =(const Vector4D<t> &v)
+	{
+		if (this != &v)
+		{
+			x = v.x;
+			y = v.y;
+			z = v.z;
+		}
+		return *this;
+	}
+
+	Vector4D<t> & operator =(const Vector3D<t> &v)
+	{
+		x = v.x;
+		y = v.y;
+		z = v.z;
+		w = 1.0f;
+		return *this;
+	}
+
+	inline Vector4D<t> operator ^(const Vector4D<t> &v) const { return Vector4D<t>(y*v.z - z * v.y, z*v.x - x * v.z, x*v.y - y * v.x,1); }
+	inline Vector4D<t> operator +(const Vector4D<t> &v) const { return Vector4D<t>(x + v.x, y + v.y, z + v.z,1); }
+	inline Vector4D<t> operator -(const Vector4D<t> &v) const { return Vector4D<t>(x - v.x, y - v.y, z - v.z,1); }
+	inline Vector4D<t> operator *(float f)          const { return Vector4D<t>(x*f, y*f, z*f,1); }
+	inline t       operator *(const Vector4D<t> &v) const { return x * v.x + y * v.y + z * v.z; }
+
+	t& operator [](const int i) { if (i <= 0)return x; else if (i == 1) return y; else return z; }
+	//t       operator *(const Vec3<t> &v) const { return x * v.x + y * v.y + z * v.z; }
+	float norm() const { return std::sqrt(x*x + y * y + z * z); }
+	Vector4D<t> & normalize(t l = 1) { *this = (*this)*(l / norm()); (*this).z = (t)1; return *this; }
+	template <class > friend std::ostream& operator<<(std::ostream& s, Vector4D<t>& v);
+};
+
 typedef Vector2D<float> Vector2f;
 typedef Vector2D<int>   Vector2i;
 typedef Vector3D<float> Vector3f;
 typedef Vector3D<int>   Vector3i;
+typedef Vector4D<float> Vector4f;
+typedef Vector4D<int>   Vector4i;
 
 template <> template <> Vector3D<int>::Vector3D(const Vector3D<float> &v);
 template <> template <> Vector3D<float>::Vector3D(const Vector3D<int> &v);
+template <> template <> Vector4D<int>::Vector4D(const Vector4D<float> &v);
+template <> template <> Vector4D<float>::Vector4D(const Vector4D<int> &v);
 
 template <class t> std::ostream& operator<<(std::ostream& s, Vector2D<t>& v) {
 	s << "(" << v.x << ", " << v.y << ")\n";
@@ -70,13 +122,18 @@ template <class t> std::ostream& operator<<(std::ostream& s, Vector3D<t>& v) {
 	return s;
 }
 
+template <class t> std::ostream& operator<<(std::ostream& s, Vector4D<t>& v) {
+	s << "(" << v.x << ", " << v.y << ", " << v.z <<", " << v.w <<")\n";
+	return s;
+}
+
 //////////Matrix////////////////
 const int Default_ALLOC = 4;
 class Matrix
 {
+public:
 	std::vector<std::vector<float>> m;
 	int rows, cols;
-public:
 	Matrix(int r=Default_ALLOC, int c = Default_ALLOC);
 	inline int Rows();
 	inline int Cols();
@@ -84,8 +141,14 @@ public:
 	static Matrix Identity(int dimensions);
 	std::vector<float>& operator[](const int i);
 	Matrix operator*(const Matrix& a);
+	Vector4f operator*(const Vector4f& a);
+	Matrix operator*(float s);
 	Matrix Transpose();
 	Matrix Inverse();
-private:
+	
+	static Matrix ZeroMatrix(int dimension);
+	static Matrix TranslateMatrix(float x, float y, float z);
+	static Matrix ScaleMatrix(float x, float y, float z);
+	static Matrix RotateMatrix(float x, float y, float z, float theta);
 
 };

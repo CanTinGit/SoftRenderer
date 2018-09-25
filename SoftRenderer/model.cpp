@@ -14,8 +14,9 @@ Model::Model(const char *filename) : verts_(), faces_() {
 	position.x = 0;
 	position.y = 0;
 	position.z = 0;
+	position.w = 1;
 
-	dir = Vector3f(0, 0, 1);
+	dir = Vector4f(0, 0, 1,0);
 	
 	max_radius = 0;
 	int radius = 0;
@@ -30,8 +31,9 @@ Model::Model(const char *filename) : verts_(), faces_() {
 		char trash;
 		if (!line.compare(0, 2, "v ")) {
 			iss >> trash;
-			Vector3f v;
+			Vector4f v;
 			for (int i = 0; i < 3; i++) iss >> v[i];
+			v.w = 1.0f;
 			verts_.push_back(v);
 			radius = v.x * v.x + v.y*v.y + v.z*v.z;
 			if (radius > max_radius)
@@ -69,7 +71,7 @@ std::vector<int> Model::face(int idx) {
 	return faces_[idx];
 }
 
-Vector3f Model::vert(int i) {
+Vector4f Model::vert(int i) {
 	return verts_[i];
 }
 
@@ -80,7 +82,7 @@ void Model::SetPosition(float x, float y, float z)
 	position.z = z;
 }
 
-Vector3f Model::Position()
+Vector4f Model::Position()
 {
 	return position;
 }

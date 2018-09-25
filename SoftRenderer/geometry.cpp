@@ -14,6 +14,20 @@ template <> template <> Vector3D<float>::Vector3D(const Vector3D<int> &v)
 	z = v.z;
 }
 
+template <> template <> Vector4D<int>::Vector4D(const Vector4D<float> &v)
+{
+	x = int(v.x + 0.5f);
+	y = int(v.y + 0.5f);
+	z = int(v.z + 0.5f);
+}
+
+template <> template <> Vector4D<float>::Vector4D(const Vector4D<int> &v)
+{
+	x = v.x;
+	y = v.y;
+	z = v.z;
+}
+
 Matrix::Matrix(int r,int c) {
 	m = std::vector<std::vector<float> >(r, std::vector<float>(c, 0.f));
 	rows = r;
@@ -50,6 +64,29 @@ Matrix Matrix::operator*(const Matrix& a)
 			{
 				result.m[i][j] += m[i][k] * a.m[k][j];
 			}
+		}
+	}
+	return result;
+}
+
+Vector4f Matrix::operator*(const Vector4f& a) 
+{
+	Vector4f v;
+	v.x = a.x * m[0][0] + a.y * m[0][1] + a.z *m[0][2] + a.w * m[0][3];
+	v.y = a.x * m[1][0] + a.y * m[1][1] + a.z *m[1][2] + a.w * m[1][3];
+	v.z = a.x * m[2][0] + a.y * m[2][1] + a.z *m[2][2] + a.w * m[2][3];
+	v.w = a.x * m[3][0] + a.y * m[3][1] + a.z *m[3][2] + a.w * m[3][3];
+	return v;
+}
+
+Matrix Matrix::operator*(float s)
+{
+	Matrix result;
+	for (int i = 0; i < rows; i++)
+	{
+		for (int j = 0; j < cols; j++)
+		{
+			result[i][j] = m[i][j] * s;
 		}
 	}
 	return result;
@@ -128,3 +165,57 @@ Matrix Matrix::Inverse()
 	return truncate;
 }
 
+Matrix Matrix::ZeroMatrix(int dimension) {
+	Matrix E(dimension, dimension);
+	for (int i = 0; i < dimension; i++)
+	{
+		for (int j = 0; j < dimension; j++)
+		{
+			E[i][j] = 0.0f;
+		}
+	}
+	return E;
+}
+
+Matrix Matrix::TranslateMatrix(float x, float y, float z) {
+	Matrix E = Identity(4);
+	E[3][0] = x;
+	E[3][1] = y;
+	E[3][2] = z;
+	return E;
+}
+
+Matrix Matrix::ScaleMatrix(float x, float y, float z) {
+	Matrix E = Identity(4);
+	E[0][0] = x;
+	E[1][1] = y;
+	E[2][2] = z;
+	return E;
+}
+
+Matrix Matrix::RotateMatrix(float x, float y, float z, float theta) {
+	Matrix E = Identity(4);
+	float qsin = (float)sin(theta);
+	float qcos = (float)cos(theta);
+	float one_qcos = 1 - qcos;
+	Vector4f vi(x, y, z, 1);
+	vi.normalize();
+	float X = vi.x, Y = vi.y, Z = vi.z;
+	E.m[0][0] = qcos + X * X*one_qcos;
+	E.m[1][0] = X * Y*one_qcos - Z * qsin;
+	E.m[2][0] = X * Z*one_qcos + Y * qsin;
+	E.m[3][0] = 0.0f;
+	E.m[0][1] = Y * X*one_qcos + Z * qsin;
+	E.m[1][1] = qcos + Y * Y*one_qcos;
+	E.m[2][1] = Y * Z*one_qcos - X * qsin;
+	E.m[3][1] = 0.0f;
+	E.m[0][2] = Z * X*one_qcos - Y * qsin;
+	E.m[1][2] = Z * Y*one_qcos + X * qsin;
+	E.m[2][2] = qcos + Z * Z*one_qcos;
+	E.m[3][2] = 0.0f;
+	E.m[0][3] = 0;
+	E.m[1][3] = 0;
+	E.m[2][3] = 0;
+	E.m[3][3] = 1.0f;
+	return E;
+}

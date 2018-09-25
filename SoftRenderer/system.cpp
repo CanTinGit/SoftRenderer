@@ -5,6 +5,7 @@
 #include "mymath.h"
 #include "model.h"
 #include <vector>
+#include "render.h"
 
 using namespace std;
 /////////////////////////
@@ -159,69 +160,35 @@ int main()
 	if (Screen_Init(800, 600, title))
 		return -1;
 
-	Model model("obj/cube.obj");
-	Camera my_camera(0, 0, -3);
-	Camera my();
-	
+	Model *model = new Model("obj/african_head.obj");
+	model->nfaces();
+	Vector4f look_at(0, 0, 0, 1), up = { 0,0,1,1 };
+	Device my_device(screen_width, screen_height, screen_fb);
+	my_device.my_camera.SetPosition(0, 0, -3);
+	my_device.my_camera.SetCamera(look_at, up);
 
-	//将模型坐标转换为世界坐标
-	vector<Vector3f> model_world_coords;
-	for (int i = 0; i < model.nverts(); i++)
+	my_device.transform.view = my_device.my_camera.view;
+
+	float aspect = float(800) / ((float)600);
+	float fovy = PI * 0.5f;
+	my_device.transform.Set_Perspective(fovy, aspect, 1.0f, 500.0f);
+	my_device.transform.Update();
+
+	my_device.Clear(0);
+
+	int op = 0;
+	while (screen_exit==0 && screen_keys[VK_ESCAPE] == 0) 
 	{
-		Vector3f v = Translate(model.vert[i], model.SetPosition);        //根据模型中心,将其顶点平移至中心左右
-		model_world_coords.push_back(v);
-	}
-
-	//包围球测试
-	SphereTest(model, 100, 10);
-
-	//背面剔除
-	for (int i = 0; i < model.nfaces(); i++)
-	{
-		vector<int> face = model.face(i);
-		vector<Vector3f> ver_face;   
-		for (int j = 0; j < 3; j++)
+		Screen_Dispatch();
+		my_device.Clear(0);
+		my_device.Render(*model, op);
+		if (screen_keys[VK_SPACE])
 		{
-			ver_face.push_back(model.vert(face[j]));            //存储每个三角形的三个顶点,用于计算面法线
+			op++;
+			op %= 5;
 		}
-
-		Vector3f n = (ver_face[2] - ver_face[0]) ^ (ver_face[1] - ver_face[0]);  //三角形两条边叉乘获得面法线
-		//待实现: 面法线点乘相机观察向量来检测当前面是否可见
-
-	}
-
-	//将世界坐标转换为相机坐标
-	vector<Vector3f> model_camera_coords;
-	vector<Vector3f> model_camera_coords_justFinishTranslating;
-	//顶点平移
-	for (int i = 0; i < model.nverts(); i++)	
-	{
-		Vector3f v = Translate(model_world_coords[i], Vector3f(-my_camera.GetPosition().x, -my_camera.GetPosition().y, -my_camera.GetPosition().z));        //将相机平移到世界坐标原点后,同样要对所有模型进行相同的平移
-		model_camera_coords_justFinishTranslating.push_back(v);
-	}
-	//待实现:顶点旋转
-
-	//投影变换
-	vector<Vector3f> viewPort;                 //转换后可忽视z坐标
-	for (int i = 0; i < model_camera_coords.size(); i++)
-	{	
-		Vector3f v = TransformToViewPort(screen_width, screen_height, model_camera_coords[i]);
-		viewPort.push_back(v);
-	}
-
-	//屏幕坐标变换
-	vector<Vector2f> screen;                
-	for (int i = 0; i < viewPort.size(); i++)
-	{
-		Vector2f v = TransformToScreen(viewPort[i],screen_width,screen_height);
-		screen.push_back(v);
-	}
-
-
-	while (TRUE) {
-		
 		Screen_update();
-		if (KEY_DOWN(VK_ESCAPE)) PostMessage(screen_handle, WM_DESTROY, 0, 0);
+		Sleep(1);
 	}
 
 }
