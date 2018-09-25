@@ -47,7 +47,7 @@ Vector3f Translate(Vector3f vertex, Vector3f model_center)
 	return MatrixToVector(temp);
 }
 
-
+//相机坐标转换为投影坐标
 Vector3f TransformToViewPort(float width, float height, Vector3f vertex)
 {
 	Matrix viewport = Matrix::Identity(4);
@@ -60,6 +60,16 @@ Vector3f TransformToViewPort(float width, float height, Vector3f vertex)
 	Matrix temp = VectorToMatrix(vertex);
 	temp = temp * viewport;
 	return MatrixToVector(temp);
+}
+
+
+//由投影坐标转换为屏幕坐标
+Vector2f TransformToScreen(Vector3f viewPortPosition, float width, float height)
+{
+	float x = (viewPortPosition.x + 1) *(0.5f *width - 0.5f);
+	float y = (height - 1) - (viewPortPosition.y + 1) *(0.5f * height - 0.5f);
+	Vector2f v(x, y);
+	return v;
 }
 
 bool SphereTest(Model model, float far_z, float near_z)

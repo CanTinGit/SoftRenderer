@@ -14,6 +14,8 @@ Model::Model(const char *filename) : verts_(), faces_() {
 	position.x = 0;
 	position.y = 0;
 	position.z = 0;
+
+	dir = Vector3f(0, 0, 1);
 	
 	max_radius = 0;
 	int radius = 0;

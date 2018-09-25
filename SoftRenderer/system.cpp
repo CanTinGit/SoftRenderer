@@ -202,12 +202,21 @@ int main()
 	//待实现:顶点旋转
 
 	//投影变换
-	vector<Vector3f> viewPort;
+	vector<Vector3f> viewPort;                 //转换后可忽视z坐标
 	for (int i = 0; i < model_camera_coords.size(); i++)
 	{	
 		Vector3f v = TransformToViewPort(screen_width, screen_height, model_camera_coords[i]);
 		viewPort.push_back(v);
 	}
+
+	//屏幕坐标变换
+	vector<Vector2f> screen;                
+	for (int i = 0; i < viewPort.size(); i++)
+	{
+		Vector2f v = TransformToScreen(viewPort[i],screen_width,screen_height);
+		screen.push_back(v);
+	}
+
 
 	while (TRUE) {
 		

@@ -11,6 +11,7 @@ private:
 	std::vector<Vector3f> verts_;
 	std::vector<std::vector<int> > faces_;
 	float max_radius;
+	Vector3f dir;
 public:
 	Model(const char *filename);
 	~Model();
