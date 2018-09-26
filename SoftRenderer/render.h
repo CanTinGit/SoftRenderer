@@ -62,7 +62,7 @@ public:
 	~Device();
 
 	void Clear(int mode);
-	bool BackfaceCulling(Vector4f pa_v, Vector4f pb_v, Vector4f pc_v);
+	bool BackfaceCulling(Vertex pa_v, Vertex pb_v, Vertex pc_v, Vector4f normal);
 	//bool BackfaceCulling(Vertex pa_v, Vertex pb_v, Vertex pc_v);
 
 	void PutPixel(int x, int y, UINT32 &color);
@@ -72,6 +72,7 @@ public:
 	void DrawLine(Vector3i p1, Vector3i p2, UINT32 color);
 
 	//…®√Ëœﬂ∑®ÃÓ≥‰
+	void DrawTriangleFrame(Vertex A, Vertex B, Vertex C, UINT32 color);
 	void DrawTriangle(Vertex A, Vertex B, Vertex C, UINT32 color);
 
 

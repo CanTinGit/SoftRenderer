@@ -196,7 +196,7 @@ int main()
 	model->SetRotation(0, 0, 0, 0);
 	Vector4f look_at(0, 0, 0, 1), up = { 0,1,0,1 };
 	Device my_device(screen_width, screen_height, screen_fb);
-	my_device.my_camera.SetPosition(0, 0, -50);
+	my_device.my_camera.SetPosition(0, 0, -3);
 	my_device.my_camera.SetCamera(look_at, up);
 
 	my_device.transform.view = my_device.my_camera.view;

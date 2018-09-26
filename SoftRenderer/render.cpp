@@ -151,17 +151,16 @@ void Device::Clear(int mode)
 }
 
 //背面剔除
-bool Device::BackfaceCulling(Vector4f p0, Vector4f p1, Vector4f p2)
+bool Device::BackfaceCulling(Vertex p0, Vertex p1, Vertex p2, Vector4f normal)
 {
-	//计算三角形所在面的法线
-	Vector4f normal;
-	Vector4f v1 = p2 - p0;
-	Vector4f v2 = p1 - p0;
-	normal = v1 ^ v2;
+	////计算三角形所在面的法线
+	//Vector4f normal;
+	float temp = float(1) / float(3);
+	//normal = (p0.normal + p1.normal + p2.normal) * temp;
 
 	//计算三顶点的中心
 	Vector4f center_point;
-	center_point = (p0 + p1 + p2) * 0.333333f;
+	center_point = (p0.worldCoordinates + p1.worldCoordinates + p2.worldCoordinates) * temp;
 	if (my_camera.plane_camera_cos(center_point, normal)) return true;
 	else return false;
 }
@@ -285,6 +284,29 @@ void Device::DrawLine(Vector3i p1, Vector3i p2, UINT32 color)
 	}
 }
 
+void Device::DrawTriangleFrame(Vertex A, Vertex B, Vertex C, UINT32 color)
+{
+	if (A.coordinates.y == B.coordinates.y && B.coordinates.y == C.coordinates.y)
+		return;
+	Vector3i p1, p2, p3;
+	p1.x = A.coordinates.x;
+	p1.y = A.coordinates.y;
+	p1.z = A.coordinates.z;
+
+	p2.x = B.coordinates.x;
+	p2.y = B.coordinates.y;
+	p2.z = B.coordinates.z;
+
+	p3.x = C.coordinates.x;
+	p3.y = C.coordinates.y;
+	p3.z = C.coordinates.z;
+
+	DrawLine(p1, p2,color);
+	DrawLine(p1, p3, color);
+	DrawLine(p2, p2,color);
+}
+
+
 void Device::DrawTriangle(Vertex A, Vertex B, Vertex C, UINT32 color)
 {
 	if (A.coordinates.y == B.coordinates.y && B.coordinates.y == C.coordinates.y)
@@ -332,8 +354,8 @@ void Device::Render(Model& model, int op)
 	transform.world = Matrix::RotateMatrix(model.rotation.x, model.rotation.y, model.rotation.z, model.rotation.w);
 	transform.Update();
 
-	Vertex re, re2, re3, re4;
-
+	Vertex  re2, re3, re4;
+	int count_backface = 0;
 	for (int i = 0; i < model.nfaces(); i++)
 	{
 		transform.Apply(model.vertices[model.faces[i][0]], re2);
@@ -353,8 +375,16 @@ void Device::Render(Model& model, int op)
 		//	transform.Homogenize(re, re);
 		//	screen_coords[j] = re;//Vector3i(int((v.x + 1.)*width / 2.), int((v.y + 1.)*height / 2.),v.z);
 		//}
-		DrawTriangle(re2, re3, re4, color[i]);
+		if (BackfaceCulling(re2,re3,re4,model.normals[i/2]))
+		{
+			DrawTriangleFrame(re2, re3, re4, 0x00cc00ff);
+		}
+		else
+		{
+			count_backface++;
+		}
 	}
+	cout << count_backface << endl;
 }
 
 
