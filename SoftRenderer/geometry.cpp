@@ -219,3 +219,11 @@ Matrix Matrix::RotateMatrix(float x, float y, float z, float theta) {
 	E.m[3][3] = 1.0f;
 	return E;
 }
+
+
+void Color::Set(UINT32 x, float s) {
+	uint32 = x;
+	argb[0] *= s;
+	argb[1] *= s;
+	argb[2] *= s;
+}

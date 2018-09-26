@@ -8,6 +8,10 @@
 #include <iostream>
 #include <vector>
 #include <assert.h>
+
+typedef unsigned char BYTE;
+typedef unsigned int UINT32;
+
 template <class t> class Vector4D;
 //////////Vector////////////////
 template <class t> class Vector2D {
@@ -74,6 +78,7 @@ public:
 			x = v.x;
 			y = v.y;
 			z = v.z;
+			w = v.w;
 		}
 		return *this;
 	}
@@ -96,7 +101,15 @@ public:
 	t& operator [](const int i) { if (i <= 0)return x; else if (i == 1) return y; else return z; }
 	//t       operator *(const Vec3<t> &v) const { return x * v.x + y * v.y + z * v.z; }
 	float norm() const { return std::sqrt(x*x + y * y + z * z); }
-	Vector4D<t> & normalize(t l = 1) { *this = (*this)*(l / norm()); (*this).z = (t)1; return *this; }
+	Vector4D<t> & normalize(t l = 1)
+	{
+		if (norm() != 0.0f)
+		{
+			*this = (*this)*(l / norm());
+		} 
+		(*this).w = (t)1; 
+		return *this;
+	}
 	template <class > friend std::ostream& operator<<(std::ostream& s, Vector4D<t>& v);
 };
 
@@ -151,4 +164,30 @@ public:
 	static Matrix ScaleMatrix(float x, float y, float z);
 	static Matrix RotateMatrix(float x, float y, float z, float theta);
 
+};
+
+
+class Color
+{
+public:
+	union
+	{
+		BYTE argb[4]; //bgra 小端存储
+		UINT32 uint32;
+	};
+	void Set(UINT32 x, float s);
+	inline Color operator*(const Color &color) {
+		Color result; result.argb[0] = argb[0] * color.argb[0]; result.argb[1] = argb[1] * color.argb[1];
+		result.argb[2] = argb[2] * color.argb[2]; return result;
+	}
+};
+
+class Vertex
+{
+public:
+	Vector4f normal;                 //法向量
+	Vector4f local;                  //局部坐标
+	Vector4f coordinates;			 //投影后的坐标
+	Vector4f worldCoordinates;		 //原世界坐标
+	float u, v;
 };

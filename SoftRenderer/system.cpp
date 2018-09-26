@@ -154,17 +154,49 @@ void Screen_update(void)
 	Screen_Dispatch();
 }
 
+/*测试用*/
+Vector4f all_verticesJson[] = {
+	{ -1, 1,  -1, 1 },
+	{ -1, -1,  1, 1 },
+	{ -1, -1, -1, 1 },
+	{ -1,  1, 1, 1 },
+	{ 1, -1, 1, 1 },
+	{ 1, 1, 1, 1 },
+	{ 1,  -1, -1, 1 },
+	{ 1, 1, -1, 1 }
+};
+Face facesJson[] = {
+	{0,1,2},{3,4,1},{5,6,4},{7,2,6},
+	{4,2,1},{3,7,5},{0,3,1},{3,5,4},
+	{5,7,6},{7,0,2},{4,6,2},{3,0,7}
+};
+void set_mesh_vertices_faces(Mesh &mesh, Vector4f pd[], Face faces1[]) {
+	//设置mesh的顶点坐标-
+	for (int i = 0; i < mesh.vertex_cout; i++) {
+		mesh.vertices[i].worldCoordinates = pd[i];
+	}
+	for (int i = 0; i < mesh.face_count; i++) {
+		mesh.faces[i] = faces1[i];
+	}
+}
+/*测试用*/
+
 int main()
 {
+	//Mesh mesh(8, 12);
+	//set_mesh_vertices_faces(mesh, all_verticesJson, facesJson);
+
+	//mesh.Rotation = { 0, 0, 0, 0 };
+
 	const TCHAR *title = _T("TinyRender");
 	if (Screen_Init(800, 600, title))
 		return -1;
 
-	Model *model = new Model("obj/african_head.obj");
-	model->nfaces();
-	Vector4f look_at(0, 0, 0, 1), up = { 0,0,1,1 };
+	Model *model = new Model("Resources/cube.obj");
+	model->SetRotation(0, 0, 0, 0);
+	Vector4f look_at(0, 0, 0, 1), up = { 0,1,0,1 };
 	Device my_device(screen_width, screen_height, screen_fb);
-	my_device.my_camera.SetPosition(0, 0, -3);
+	my_device.my_camera.SetPosition(0, 0, -50);
 	my_device.my_camera.SetCamera(look_at, up);
 
 	my_device.transform.view = my_device.my_camera.view;

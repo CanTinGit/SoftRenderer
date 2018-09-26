@@ -1,12 +1,5 @@
 #include "render.h"
 
-void Color::Set(UINT32 x, float s) {
-	uint32 = x;
-	argb[0] *= s;
-	argb[1] *= s;
-	argb[2] *= s;
-}
-
 //矩阵更新计算：transform = projection * view * world
 void Transform::Update()
 {
@@ -31,6 +24,15 @@ void Transform::Apply(Vector4f &op, Vector4f &re)
 	re = transform * op;
 }
 
+void Transform::Apply(Vertex &op, Vertex &re)
+{
+	re.coordinates = transform * op.local;
+	re.worldCoordinates = world * op.local;
+	re.normal = world * op.normal;
+	re.u = op.u;
+	re.v = op.v;
+}
+
 //归一化得到屏幕坐标
 void Transform::Homogenize(Vector4f &op, Vector4f &re)
 {
@@ -52,6 +54,34 @@ void Transform::Set_Perspective(float fovy, float aspect, float near_z, float fa
 	projection.m[3][2] = near_z * far_z / (near_z - far_z);
 	projection.m[2][3] = 1;
 }
+
+Mesh::Mesh(int count, int face_count)
+{
+	if (!count) return;
+	this->vertex_cout = count;
+	this->face_count = face_count;
+	faces = NULL;
+	vertices = NULL;
+	if (count) vertices = new Vertex[count];
+	if (face_count) faces = new Face[face_count];
+}
+
+Mesh::~Mesh()
+{
+	vertices = NULL;
+	faces = NULL;
+}
+
+void Mesh::Get_face_normal(int i, Vector4f& normal)
+{
+	Vector4f edge1, edge2;
+	edge1 = vertices[faces[i].v3].worldCoordinates - vertices[faces[i].v1].worldCoordinates;
+	edge2 = vertices[faces[i].v2].worldCoordinates - vertices[faces[i].v1].worldCoordinates;
+	normal = edge2 ^ edge1;
+}
+
+
+
 
 ////////////////
 //渲染抽象设备//
@@ -236,14 +266,14 @@ void Device::DrawLine(Vector3i p1, Vector3i p2, UINT32 color)
 		float gradient = 0;
 		gradient = (x - x0) / (float)(x1 - x0);
 		float z = p1.z + (p2.z - p1.z)*gradient;
-		
+
 		if (steep)
 		{
-			PutPixel(y, x,z, color);
+			PutPixel(y, x, z, color);
 		}
 		else
 		{
-			PutPixel(x, y,z, color);
+			PutPixel(x, y, z, color);
 		}
 
 		e += de;
@@ -255,32 +285,34 @@ void Device::DrawLine(Vector3i p1, Vector3i p2, UINT32 color)
 	}
 }
 
-void Device::DrawTriangle(Vector3i A, Vector3i B, Vector3i C, UINT32 color)
+void Device::DrawTriangle(Vertex A, Vertex B, Vertex C, UINT32 color)
 {
-	if (A.y == B.y && B.y == C.y)
+	if (A.coordinates.y == B.coordinates.y && B.coordinates.y == C.coordinates.y)
 		return;
-	if (A.y > B.y) std::swap(A, B);
-	if (A.y > C.y) std::swap(A, C);
-	if (B.y > C.y) std::swap(B, C);
-	int total_height = C.y - A.y;
+	if (A.coordinates.y > B.coordinates.y) std::swap(A, B);
+	if (A.coordinates.y > C.coordinates.y) std::swap(A, C);
+	if (B.coordinates.y > C.coordinates.y) std::swap(B, C);
+	int total_height = C.coordinates.y - A.coordinates.y;
 
 	for (int i = 0; i < total_height; i++)
 	{
-		bool second_half = i > B.y - A.y || B.y == A.y;
-		int segment_height = second_half ? C.y - B.y : B.y - A.y;
+		bool second_half = i > B.coordinates.y - A.coordinates.y || B.coordinates.y == A.coordinates.y;
+		int segment_height = second_half ? C.coordinates.y - B.coordinates.y : B.coordinates.y - A.coordinates.y;
 		float alpha = (float)i / total_height;
-		float beta = (float)(i - (second_half ? B.y - A.y : 0)) / segment_height; //second_half ? (float)(i - B.y) / segment_height : (float)(i - A.y) / segment_height;
-		Vector3i X = A + Vector3f(C - A) *alpha;
-		Vector3i Y = second_half ? B + Vector3f(C - B)*beta : A + Vector3f(B - A)*beta;
+		float beta = (float)(i - (second_half ? B.coordinates.y - A.coordinates.y : 0)) / segment_height; //second_half ? (float)(i - B.y) / segment_height : (float)(i - A.y) / segment_height;
+		Vector4f X = A.coordinates + Vector4f(C.coordinates - A.coordinates) *alpha;
+		Vector4f Y = second_half ? B.coordinates + Vector4f(C.coordinates - B.coordinates)*beta : A.coordinates + Vector4f(B.coordinates - A.coordinates)*beta;
 		if (X.x > Y.x) swap(X, Y);
 		for (int x = X.x; x <= Y.x; x++)
 		{
 			float phi = Y.x == X.x ? 1.0f : (float)(x - X.x) / (float)(Y.x - X.x);
-			Vector3i P = Vector3f(X) + Vector3f(Y - X)*phi;
-			if (zbuffer[P.y][P.x] > P.z)
+			Vector4f P = Vector4f(X) + Vector4f(Y - X)*phi;
+			if (P.x > width || P.x < 0 || P.y>height || P.y < 0)
+				continue;
+			if (zbuffer[int(P.y)][int(P.x)] > P.z)
 			{
-				zbuffer[P.y][P.x] = P.z;
-				PutPixel(P.x, P.y, color);
+				zbuffer[int(P.y)][int(P.x)] = P.z;
+				PutPixel(int(P.x), int(P.y), color);
 			}
 		}
 	}
@@ -291,24 +323,37 @@ void Device::Render(Model& model, int op)
 	transform.Update();
 
 	Clear(0);
-	UINT32 color = 0x00eeffcc;
-	PutPixel(400, 200, color);
-	DrawLine({ 200,200 }, { 500,500 }, color);
+	UINT32 color[] = { 0x00ff0000 ,0x0000ff00,0x000000ff,0x00ffff00,
+		0x00efefef,0x00eeffcc,0x00cc00ff,0x0015ffff,
+		0x00121212,0x00001233,0x5615cc,0x353578,
+		0x00ffffff};
+
+	transform.world = Matrix::TranslateMatrix(model.Position().x, model.Position().y, model.Position().z);
+	transform.world = Matrix::RotateMatrix(model.rotation.x, model.rotation.y, model.rotation.z, model.rotation.w);
+	transform.Update();
+
+	Vertex re, re2, re3, re4;
 
 	for (int i = 0; i < model.nfaces(); i++)
 	{
-		vector<int> face = model.face(i);
-		Vector3i screen_coords[3];
-		Vector4f world_coords[3];
-		for (int j = 0; j < 3; j++)
-		{
-			Vector4f v = model.vert(face[j]);
-			Vector4f re;
-			transform.Apply(v, re);
-			transform.Homogenize(v, re);
-			screen_coords[j] = re;//Vector3i(int((v.x + 1.)*width / 2.), int((v.y + 1.)*height / 2.),v.z);
-		}
-		DrawTriangle(screen_coords[0], screen_coords[1], screen_coords[2], 0xc0c0c0);
+		transform.Apply(model.vertices[model.faces[i][0]], re2);
+		transform.Homogenize(re2.coordinates, re2.coordinates);
+		transform.Apply(model.vertices[model.faces[i][1]], re3);
+		transform.Homogenize(re3.coordinates, re3.coordinates);
+		transform.Apply(model.vertices[model.faces[i][2]], re4);
+		transform.Homogenize(re4.coordinates, re4.coordinates);
+		//vector<int> face = model.face(i);
+		//Vector3i screen_coords[3];
+		//Vector4f world_coords[3];
+		//for (int j = 0; j < 3; j++)
+		//{
+		//	Vector4f v = model.vert(face[j]);
+		//	Vector4f re;
+		//	transform.Apply(v, re);
+		//	transform.Homogenize(re, re);
+		//	screen_coords[j] = re;//Vector3i(int((v.x + 1.)*width / 2.), int((v.y + 1.)*height / 2.),v.z);
+		//}
+		DrawTriangle(re2, re3, re4, color[i]);
 	}
 }
 

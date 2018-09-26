@@ -12,27 +12,21 @@ typedef unsigned int UINT32;
 #define INTERP(x1,x2,t) ((x1) + ((x2) - (x1))*(t))
 inline int CMID(int x, int min, int max) { return (x < min) ? min : ((x > max) ? max : x); }
 
-class Color
-{
-public:
-	union 
-	{
-		BYTE argb[4]; //bgra 小端存储
-		UINT32 uint32;
-	};
-	void Set(UINT32 x, float s);
-	inline Color operator*(const Color &color) {
-		Color result; result.argb[0] = argb[0] * color.argb[0]; result.argb[1] = argb[1] * color.argb[1]; 
-		result.argb[2] = argb[2] * color.argb[2]; return result;
-	}
-};
+typedef  struct { int v1, v2, v3; } Face;
 
-class Vertex
+class Mesh
 {
 public:
-	Vector4f normal;                 //法向量
-	Vector4f coordinates;			 //投影后的坐标
-	Vector4f worldCoordinates;		 //原世界坐标
+	string name;
+	Vertex *vertices;
+	Face *faces;
+	Vector4f position;
+	Vector4f Rotation;
+	int vertex_cout, face_count;
+
+	void Get_face_normal(int i, Vector4f &normal);
+	Mesh(int count = 0, int face_count = 0);
+	~Mesh();
 };
 
 class Transform
@@ -47,6 +41,7 @@ public:
 	void Update();
 	void Init(int _width, int _height);
 	void Apply(Vector4f &op, Vector4f &re);      //对矢量做投影变换
+	void Apply(Vertex &op, Vertex &re);          //对顶点做投影变换
 	//void Apply(Vertex &op, Vertex &re);       //对顶点做投影变换
 	void Homogenize(Vector4f &op, Vector4f &re);
 	void Set_Perspective(float fovy, float aspect, float near_z, float far_z);
@@ -77,7 +72,7 @@ public:
 	void DrawLine(Vector3i p1, Vector3i p2, UINT32 color);
 
 	//扫描线法填充
-	void DrawTriangle(Vector3i A, Vector3i B, Vector3i C, UINT32 color);
+	void DrawTriangle(Vertex A, Vertex B, Vertex C, UINT32 color);
 
 
 	void Render(Model &model, int op);
