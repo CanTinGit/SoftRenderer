@@ -1,4 +1,29 @@
 #include "render.h"
+#include <ctime>
+
+Vector4i RandomColor(int index)
+{
+	srand((unsigned)time(NULL));
+	Vector4i color;
+	for (int i = 0; i < 3; i++)
+	{
+		unsigned seed = rand() % 100 +index;
+		srand(seed);
+		color[i] = rand() % 256;
+	}
+
+	return color;
+}
+
+UINT32 ConvertRGBTOUINT(Vector4i color)
+{
+	color.w = CMID(color.w, 0, 255);
+	color.x = CMID(color.x, 0, 255);
+	color.y = CMID(color.y, 0, 255);
+	color.z = CMID(color.z, 0, 255);
+	UINT32 color_ = ((color.w & 0xff) << 24) + ((color.x & 0xff) << 16) + ((color.y & 0xff) << 8) + (color.z & 0xff);
+	return color_;
+}
 
 //矩阵更新计算：transform = projection * view * world
 void Transform::Update()
@@ -31,6 +56,7 @@ void Transform::Apply(Vertex &op, Vertex &re)
 	re.normal = world * op.normal;
 	re.u = op.u;
 	re.v = op.v;
+	re.color = op.color;
 }
 
 //归一化得到屏幕坐标
@@ -305,6 +331,28 @@ void Device::ProcessScanLine(int curY, Vector4f& pa, Vector4f& pb, Vector4f& pc,
 	}
 }
 
+void Device::ProcessScanLine(ScanLineData scanline, Vector4f& pa, Vector4f& pb, Vector4f& pc, Vector4f& pd)
+{
+	float gradient_s = pa.y != pb.y ? (scanline.currentY - pa.y) / (pb.y - pa.y) : 1;
+	float gradient_e = pc.y != pd.y ? (scanline.currentY - pc.y) / (pd.y - pc.y) : 1;
+
+	int sx = INTERP(pa.x, pb.x, gradient_s);
+	int ex = INTERP(pc.x, pd.x, gradient_e);
+
+	//深度线性插值
+	float z1 = INTERP(pa.z, pb.z, gradient_s);
+	float z2 = INTERP(pc.z, pd.z, gradient_e);
+
+	for (int x = sx; x <= ex; x++)
+	{
+		float gradient = (x - sx) / (float)(ex - sx);
+		Vector4i colorRGB = scanline.leftColor + (scanline.rightColor - scanline.leftColor)*gradient;
+		UINT32 color = ConvertRGBTOUINT(colorRGB);
+		float z = INTERP(z1, z2, gradient);
+		PutPixel(x, scanline.currentY, z, color);
+	}
+}
+
 
 void Device::DrawTriangleFrame(Vertex A, Vertex B, Vertex C, UINT32 color)
 {
@@ -314,24 +362,13 @@ void Device::DrawTriangleFrame(Vertex A, Vertex B, Vertex C, UINT32 color)
 	p1 = A.coordinates;
 	p2 = B.coordinates;
 	p3 = C.coordinates;
-	//p1.x = (int)A.coordinates.x;
-	//p1.y = (int)A.coordinates.y;
-	//p1.z = (int)A.coordinates.z;
-
-	//p2.x = (int)B.coordinates.x;
-	//p2.y = (int)B.coordinates.y;
-	//p2.z = (int)B.coordinates.z;
-
-	//p3.x = (int)C.coordinates.x;
-	//p3.y = (int)C.coordinates.y;
-	//p3.z = (int)C.coordinates.z;
 
 	DrawLine(p1, p2,color);
 	DrawLine(p1, p3, color);
 	DrawLine(p2, p3,color);
 }
 
-void Device::DrawTriangle(Vertex A, Vertex B, Vertex C, UINT32 color)
+void Device::DrawTriangleFlat(Vertex A, Vertex B, Vertex C, UINT32 color)
 {
 	Vector4f pa = A.coordinates;
 	Vector4f pb = B.coordinates;
@@ -341,14 +378,15 @@ void Device::DrawTriangle(Vertex A, Vertex B, Vertex C, UINT32 color)
 	if (pa.y > pb.y) swap(pa, pb);
 	if (pa.y > pc.y) swap(pa, pc);
 	if (pb.y > pc.y) swap(pb, pc);
-
 	//两种特殊情况
 	//平顶
 	if (pa.y == pb.y)
 	{
 		if (pa.x < pb.x) swap(pa, pb);
 		for (int row = (int)pa.y; row <= (int)pc.y; row++)
-			ProcessScanLine(row, pb, pc, pa, pc, color);
+		{
+			ProcessScanLine(row, pb, pc, pa, pc, color);                     
+		}
 		return;
 	}
 
@@ -357,7 +395,10 @@ void Device::DrawTriangle(Vertex A, Vertex B, Vertex C, UINT32 color)
 	{
 		if (pc.x < pb.x) swap(pb, pc);
 		for (int row = (int)pa.y; row <= (int)pc.y; row++)
+		{
 			ProcessScanLine(row, pa, pb, pc, pa, color);
+		}
+
 		return;
 	}
 
@@ -378,7 +419,7 @@ void Device::DrawTriangle(Vertex A, Vertex B, Vertex C, UINT32 color)
 		{
 			if (row < pb.y)
 			{
-				ProcessScanLine(row, pa, pc, pb, pc, color);
+				ProcessScanLine(row, pa, pc, pb, pa, color);
 			}
 			else
 			{
@@ -402,58 +443,152 @@ void Device::DrawTriangle(Vertex A, Vertex B, Vertex C, UINT32 color)
 	}
 }
 
+void Device::DrawTriangleFlat(Vertex A, Vertex B, Vertex C)
+{
+	Vector4f pa = A.coordinates;
+	Vector4f pb = B.coordinates;
+	Vector4f pc = C.coordinates;
 
+	//按y值大小按从小到大顺序排列
+	if (pa.y > pb.y)
+	{
+		swap(pa, pb); swap(A, B);
+	}
+	if (pa.y > pc.y)
+	{
+		swap(pa, pc); swap(A, C);
+	}
+	if (pb.y > pc.y)
+	{
+		swap(pb, pc); swap(B, C);
+	}
 
-//void Device::DrawTriangle(Vertex A, Vertex B, Vertex C, UINT32 color)
-//{
-//	if (A.coordinates.y == B.coordinates.y && B.coordinates.y == C.coordinates.y)
-//		return;
-//	if (A.coordinates.y > B.coordinates.y) std::swap(A, B);
-//	if (A.coordinates.y > C.coordinates.y) std::swap(A, C);
-//	if (B.coordinates.y > C.coordinates.y) std::swap(B, C);
-//	int total_height = C.coordinates.y - A.coordinates.y;
-//
-//	for (int i = 0; i < total_height; i++)
-//	{
-//		bool second_half = i > B.coordinates.y - A.coordinates.y || B.coordinates.y == A.coordinates.y;
-//		int segment_height = second_half ? C.coordinates.y - B.coordinates.y : B.coordinates.y - A.coordinates.y;
-//		float alpha = (float)i / total_height;
-//		float beta = (float)(i - (second_half ? B.coordinates.y - A.coordinates.y : 0)) / segment_height; //second_half ? (float)(i - B.y) / segment_height : (float)(i - A.y) / segment_height;
-//		Vector4f X = A.coordinates + Vector4f(C.coordinates - A.coordinates) *alpha;
-//		Vector4f Y = second_half ? B.coordinates + Vector4f(C.coordinates - B.coordinates)*beta : A.coordinates + Vector4f(B.coordinates - A.coordinates)*beta;
-//		if (X.x > Y.x) swap(X, Y);
-//		for (int x = X.x; x <= Y.x; x++)
-//		{
-//			float phi = Y.x == X.x ? 1.0f : (float)(x - X.x) / (float)(Y.x - X.x);
-//			Vector4f P = Vector4f(X) + Vector4f(Y - X)*phi;
-//			if (P.x > width || P.x < 0 || P.y>height || P.y < 0)
-//				continue;
-//			if (zbuffer[int(P.y)][int(P.x)] > P.z)
-//			{
-//				zbuffer[int(P.y)][int(P.x)] = P.z;
-//				PutPixel(int(P.x), int(P.y), color);
-//			}
-//		}
-//	}
-//}
+	ScanLineData scanline;
+
+	//两种特殊情况
+	//平顶
+	if (pa.y == pb.y)
+	{
+		if (pa.x < pb.x)
+		{
+			swap(pa, pb); swap(A, B);
+		}
+		for (int row = (int)pa.y; row <= (int)pc.y; row++)
+		{
+			float gradient = (float)(row - (int)pa.y) / (float)(int(pc.y) - int(pa.y));
+			//scanline.leftColor = { 128,50,0,0 };
+			//scanline.rightColor = { 0,255,128,0 };
+			scanline.currentY = row;
+			scanline.leftColor = (C.color - B.color)*gradient + B.color;
+			scanline.rightColor = (C.color - A.color)*gradient + A.color;
+			ProcessScanLine(scanline, pb, pc, pa, pc);
+		}
+		return;
+	}
+
+	//平底
+	if (pc.y == pb.y)
+	{
+		if (pc.x < pb.x)
+		{
+			swap(pb, pc);
+			swap(B, C);
+		}
+		for (int row = (int)pa.y; row <= (int)pc.y; row++)
+		{
+			float gradient = (float)(row - (int)pa.y) / (float)(int(pc.y) - int(pa.y));
+			scanline.leftColor = (B.color - A.color)*gradient + A.color;
+			scanline.rightColor = (C.color - A.color)*gradient + A.color;
+			scanline.currentY = row;
+			ProcessScanLine(scanline, pa, pb, pc, pa);
+		}
+		return;
+	}
+
+	float dPaPb, dPaPc;
+	if (pb.y - pa.y > 0)
+		dPaPb = (pb.x - pa.x) / (pb.y - pa.y);
+	else
+		dPaPb = 0;
+
+	if (pc.y - pa.y > 0)
+		dPaPc = (pc.x - pa.x) / (pc.y - pa.y);
+	else
+		dPaPc = 0;
+
+	if (dPaPb > dPaPc)
+	{
+		for (int row = (int)pa.y; row <= (int)pc.y; row++)
+		{
+			if (row < pb.y)
+			{
+				float gradient_l = (float)(row - (int)pa.y) / (float)(int(pc.y) - int(pa.y));
+				float gradient_r = (float)(row - (int)pa.y) / (float)(int(pb.y) - int(pa.y));
+				scanline.leftColor = A.color + (C.color - A.color)*gradient_l;
+				scanline.rightColor = A.color + (B.color - A.color)*gradient_r;
+				scanline.currentY = row;
+				ProcessScanLine(scanline, pa, pc, pb, pa);
+			}
+			else
+			{
+				float gradient_l = (float)(row - (int)pa.y) / (float)(int(pc.y) - int(pa.y));
+				float gradient_r = (float)(row - (int)pb.y) / (float)(int(pc.y) - int(pb.y));
+				scanline.leftColor = A.color + (C.color - A.color)*gradient_l;
+				scanline.rightColor = B.color + (C.color - B.color)*gradient_r;
+				scanline.currentY = row;
+				ProcessScanLine(scanline, pa, pc, pb, pc);
+			}
+		}
+	}
+	else
+	{
+		for (int row = (int)pa.y; row <= (int)pc.y; row++)
+		{
+			if (row < pb.y)
+			{
+				float gradient_l = (float)(row - (int)pa.y) / (float)(int(pb.y) - int(pa.y));
+				float gradient_r = (float)(row - (int)pa.y) / (float)(int(pc.y) - int(pa.y));
+				scanline.leftColor = A.color + (B.color - A.color)*gradient_l;
+				scanline.rightColor = A.color + (C.color - A.color)*gradient_r;
+				scanline.currentY = row;
+				ProcessScanLine(scanline, pa, pb, pc, pa);
+			}
+			else
+			{
+				float gradient_l = (float)(row - (int)pb.y) / (float)(int(pc.y) - int(pb.y));
+				float gradient_r = (float)(row - (int)pa.y) / (float)(int(pc.y) - int(pa.y));
+				scanline.leftColor = B.color + (C.color - B.color)*gradient_l;
+				scanline.rightColor = A.color + (C.color - A.color)*gradient_r;
+				scanline.currentY = row;
+				ProcessScanLine(scanline, pb, pc, pa, pc);
+			}
+		}
+	}
+}
 
 void Device::Render(Model& model, int op)
 {
 	transform.Update();
 
-	Clear(0);
 	UINT32 color[] = { 0x00ff0000 ,0x0000ff00,0x000000ff,0x00ffff00,
 		0x00efefef,0x00eeffcc,0x00cc00ff,0x0015ffff,
 		0x00121212,0x00001233,0x5615cc,0x353578,
 		0x00ffffff};
-	UINT32 color1 = 0x00eeffcc;
+	Vector4i myColor = { 0,255,0,0 };
+	UINT32 color1 = ConvertRGBTOUINT(myColor);
+	UINT32 color2 = color[0];
 
 	//transform.world = Matrix::TranslateMatrix(model.Position().x, model.Position().y, model.Position().z);
 	transform.world = Matrix::RotateMatrix(model.rotation.x, model.rotation.y, model.rotation.z, model.rotation.w);
 	transform.Update();
-
-	Vertex  re2, re3, re4;
+	Clear(0);
+	Vertex re2, re3, re4,re5;
 	int count_backface = 0;
+
+	//每个顶点据时间产生随机颜色
+	for (int i = 0; i < model.nverts(); i++)
+		model.vertices[i].color = RandomColor(i);
+
 	for (int i = 0; i < model.nfaces(); i++)
 	{
 		transform.Apply(model.vertices[model.faces[i][0]], re2);
@@ -462,18 +597,7 @@ void Device::Render(Model& model, int op)
 		transform.Homogenize(re3.coordinates, re3.coordinates);
 		transform.Apply(model.vertices[model.faces[i][2]], re4);
 		transform.Homogenize(re4.coordinates, re4.coordinates);
-		//vector<int> face = model.face(i);
-		//Vector3i screen_coords[3];
-		//Vector4f world_coords[3];
-		//for (int j = 0; j < 3; j++)
-		//{
-		//	Vector4f v = model.vert(face[j]);
-		//	Vector4f re;
-		//	transform.Apply(v, re);
-		//	transform.Homogenize(re, re);
-		//	screen_coords[j] = re;//Vector3i(int((v.x + 1.)*width / 2.), int((v.y + 1.)*height / 2.),v.z);
-		//}
-		DrawTriangleFrame(re2, re3, re4, color[i/2]);
+		DrawTriangleFlat(re2, re3, re4);//画渐变三角形
 		//if (BackfaceCulling(re2,re3,re4,model.normals[i/2]))
 		//{
 		//	DrawTriangle(re2, re3, re4, color[i/2]);
@@ -483,7 +607,7 @@ void Device::Render(Model& model, int op)
 		//	count_backface++;
 		//}
 	}
-	cout << count_backface<<endl;
+	//cout << count_backface<<endl;
 }
 
 

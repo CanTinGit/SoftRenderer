@@ -126,11 +126,9 @@ static LRESULT Screen_Events(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 	HDC hdc;
 	switch (msg)
 	{
-	case WM_PAINT: {hdc = BeginPaint(hwnd, &ps); EndPaint(hwnd, &ps); return 0; }break;
 		case WM_CLOSE: screen_exit = 1; break;
 		case WM_KEYDOWN: screen_keys[wParam & 511] = 1; break;
-		case WM_KEYUP: screen_keys[wParam && 511] = 0; break;
-		case WM_DESTROY: {PostQuitMessage(0); return 0; } break;
+		case WM_KEYUP: screen_keys[wParam & 511] = 0; break;
 		default: return DefWindowProc(hwnd, msg, wParam, lParam);
 	}
 	return 0;
@@ -214,8 +212,6 @@ int main()
 		Screen_Dispatch();
 		my_device.Clear(0);
 		my_device.Render(*model, op);
-		my_device.my_camera.SetCamera(look_at, up);
-		my_device.transform.Update();
 
 		if (screen_keys[VK_UP]) my_device.my_camera.position.x -= 0.01f;
 		if (screen_keys[VK_DOWN]) my_device.my_camera.position.x += 0.01f;

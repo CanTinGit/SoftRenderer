@@ -189,5 +189,6 @@ public:
 	Vector4f local;                  //局部坐标
 	Vector4f coordinates;			 //投影后的坐标
 	Vector4f worldCoordinates;		 //原世界坐标
+	Vector4i color;
 	float u, v;
 };

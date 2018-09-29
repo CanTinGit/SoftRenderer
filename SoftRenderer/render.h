@@ -48,6 +48,22 @@ public:
 
 };
 
+//扫描线相关属性，便于插值
+class ScanLineData
+{
+public:
+	int currentY;
+	float ndotla;
+	float ndotlb;
+	float ndotlc;
+	float ndotld;
+
+	Vector4i leftColor, rightColor;
+
+	float ua, ub, uc, ud;
+	float va, vb, vc, vd;
+};
+
 class Device 
 {
 public:
@@ -72,10 +88,12 @@ public:
 	void DrawLine(Vector3i p1, Vector3i p2, UINT32 color);
 
 	void ProcessScanLine(int curY, Vector4f &pa, Vector4f &pb, Vector4f &pc, Vector4f &pd, UINT32& color);
+	void ProcessScanLine(ScanLineData scanline, Vector4f &pa, Vector4f &pb, Vector4f &pc, Vector4f &pd);
 
 	//扫描线法填充
 	void DrawTriangleFrame(Vertex A, Vertex B, Vertex C, UINT32 color);
-	void DrawTriangle(Vertex A, Vertex B, Vertex C, UINT32 color);
+	void DrawTriangleFlat(Vertex A, Vertex B, Vertex C, UINT32 color);
+	void DrawTriangleFlat(Vertex A, Vertex B, Vertex C);
 
 
 
