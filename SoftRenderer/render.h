@@ -82,7 +82,7 @@ public:
 	//bool BackfaceCulling(Vertex pa_v, Vertex pb_v, Vertex pc_v);
 
 	void PutPixel(int x, int y, UINT32 &color);
-	void PutPixel(int x, int y, int z, UINT32 &color);
+	void PutPixel(int x, int y, float z, UINT32 &color);
 
 	void DrawLine(Vector2i p1, Vector2i p2, UINT32 color);
 	void DrawLine(Vector3i p1, Vector3i p2, UINT32 color);

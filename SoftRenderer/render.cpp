@@ -201,13 +201,13 @@ void Device::PutPixel(int x, int y, UINT32& color)
 }
 
 //带深度测试的像素填充函数
-void Device::PutPixel(int x, int y, int z, UINT32& color)
+void Device::PutPixel(int x, int y, float z, UINT32& color)
 {
 	if (((UINT32)x) < (UINT32)width && ((UINT32)y) < (UINT32)height)
 	{
-		if (this->my_camera.GetPosition().z - z >= zbuffer[y][x]) return;
-		zbuffer[y][x] = this->my_camera.GetPosition().z - z;
-		framebuffer[y][x] = color;
+		if ( z >= zbuffer[y][x]) return;
+		zbuffer[y][x] = z;
+		framebuffer[y][x] =color;
 	}
 }
 
@@ -597,7 +597,7 @@ void Device::Render(Model& model, int op)
 		transform.Homogenize(re3.coordinates, re3.coordinates);
 		transform.Apply(model.vertices[model.faces[i][2]], re4);
 		transform.Homogenize(re4.coordinates, re4.coordinates);
-		DrawTriangleFlat(re2, re3, re4);//画渐变三角形
+		DrawTriangleFlat(re2, re3, re4,color[i/2]);//画渐变三角形
 		//if (BackfaceCulling(re2,re3,re4,model.normals[i/2]))
 		//{
 		//	DrawTriangle(re2, re3, re4, color[i/2]);
