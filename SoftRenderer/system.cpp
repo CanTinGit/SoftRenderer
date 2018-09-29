@@ -193,7 +193,7 @@ int main()
 		return -1;
 
 	Model *model = new Model("Resources/cube.obj");
-	model->SetRotation(0, 0, 0, 0);
+	model->SetRotation(0, 1, 0, 0);
 	Vector4f look_at(0, 0, 0, 1), up = { 0,1,0,1 };
 	Device my_device(screen_width, screen_height, screen_fb);
 	my_device.my_camera.SetPosition(0, 0, -3);
@@ -207,13 +207,22 @@ int main()
 	my_device.transform.Update();
 
 	my_device.Clear(0);
-
+	float theta = 0;
 	int op = 0;
 	while (screen_exit==0 && screen_keys[VK_ESCAPE] == 0) 
 	{
 		Screen_Dispatch();
 		my_device.Clear(0);
 		my_device.Render(*model, op);
+		my_device.my_camera.SetCamera(look_at, up);
+		my_device.transform.Update();
+
+		if (screen_keys[VK_UP]) my_device.my_camera.position.x -= 0.01f;
+		if (screen_keys[VK_DOWN]) my_device.my_camera.position.x += 0.01f;
+
+		if (screen_keys[VK_LEFT]) model->rotation.w += 0.01f;
+		if (screen_keys[VK_RIGHT]) model->rotation.w -= 0.01f;
+
 		if (screen_keys[VK_SPACE])
 		{
 			op++;

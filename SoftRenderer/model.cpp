@@ -38,6 +38,7 @@ Model::Model(const char *filename) : vertices(), faces() {
 			iss >> trash;
 			Vector4f v;
 			for (int i = 0; i < 3; i++) iss >> v[i];
+			v.z = -v.z;
 			v.w = 1.0f;
 			Vertex ver;
 			ver.local = v;

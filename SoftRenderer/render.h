@@ -71,9 +71,12 @@ public:
 	void DrawLine(Vector2i p1, Vector2i p2, UINT32 color);
 	void DrawLine(Vector3i p1, Vector3i p2, UINT32 color);
 
+	void ProcessScanLine(int curY, Vector4f &pa, Vector4f &pb, Vector4f &pc, Vector4f &pd, UINT32& color);
+
 	//…®√Ëœﬂ∑®ÃÓ≥‰
 	void DrawTriangleFrame(Vertex A, Vertex B, Vertex C, UINT32 color);
 	void DrawTriangle(Vertex A, Vertex B, Vertex C, UINT32 color);
+
 
 
 	void Render(Model &model, int op);

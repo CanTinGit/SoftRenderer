@@ -5,8 +5,8 @@ void Transform::Update()
 {
 	static Matrix m;
 	m = Matrix::Identity(4);
-	m = view * world;
-	transform = projection * m;
+	m = world * view;
+	transform = m * projection;
 }
 
 //初始化
@@ -51,7 +51,7 @@ void Transform::Set_Perspective(float fovy, float aspect, float near_z, float fa
 	projection.m[0][0] = (float)(fax / aspect);
 	projection.m[1][1] = (float)(fax);
 	projection.m[2][2] = far_z / (far_z - near_z);
-	projection.m[3][2] = near_z * far_z / (near_z - far_z);
+	projection.m[3][2] = - near_z * far_z / (far_z - near_z);
 	projection.m[2][3] = 1;
 }
 
@@ -161,7 +161,7 @@ bool Device::BackfaceCulling(Vertex p0, Vertex p1, Vertex p2, Vector4f normal)
 	//计算三顶点的中心
 	Vector4f center_point;
 	center_point = (p0.worldCoordinates + p1.worldCoordinates + p2.worldCoordinates) * temp;
-	if (my_camera.plane_camera_cos(center_point, normal)) return true;
+	if (my_camera.plane_camera_cos(center_point, normal)> 0) return true;
 	else return false;
 }
 
@@ -284,61 +284,158 @@ void Device::DrawLine(Vector3i p1, Vector3i p2, UINT32 color)
 	}
 }
 
+//扫描线
+void Device::ProcessScanLine(int curY, Vector4f& pa, Vector4f& pb, Vector4f& pc, Vector4f& pd, UINT32& color)
+{
+	float gradient_s = pa.y != pb.y ? (curY - pa.y) / (pb.y - pa.y) : 1;
+	float gradient_e = pc.y != pd.y ? (curY - pc.y) / (pd.y - pc.y) : 1;
+
+	int sx = INTERP(pa.x, pb.x, gradient_s);
+	int ex = INTERP(pc.x, pd.x, gradient_e);
+
+	//深度线性插值
+	float z1 = INTERP(pa.z, pb.z, gradient_s);
+	float z2 = INTERP(pc.z, pd.z, gradient_e);
+
+	for (int x = sx; x <= ex; x++)
+	{
+		float gradient = (x - sx) / (float)(ex - sx);
+		float z = INTERP(z1, z2, gradient);
+		PutPixel(x, curY, z, color);
+	}
+}
+
+
 void Device::DrawTriangleFrame(Vertex A, Vertex B, Vertex C, UINT32 color)
 {
 	if (A.coordinates.y == B.coordinates.y && B.coordinates.y == C.coordinates.y)
 		return;
 	Vector3i p1, p2, p3;
-	p1.x = A.coordinates.x;
-	p1.y = A.coordinates.y;
-	p1.z = A.coordinates.z;
+	p1 = A.coordinates;
+	p2 = B.coordinates;
+	p3 = C.coordinates;
+	//p1.x = (int)A.coordinates.x;
+	//p1.y = (int)A.coordinates.y;
+	//p1.z = (int)A.coordinates.z;
 
-	p2.x = B.coordinates.x;
-	p2.y = B.coordinates.y;
-	p2.z = B.coordinates.z;
+	//p2.x = (int)B.coordinates.x;
+	//p2.y = (int)B.coordinates.y;
+	//p2.z = (int)B.coordinates.z;
 
-	p3.x = C.coordinates.x;
-	p3.y = C.coordinates.y;
-	p3.z = C.coordinates.z;
+	//p3.x = (int)C.coordinates.x;
+	//p3.y = (int)C.coordinates.y;
+	//p3.z = (int)C.coordinates.z;
 
 	DrawLine(p1, p2,color);
 	DrawLine(p1, p3, color);
-	DrawLine(p2, p2,color);
+	DrawLine(p2, p3,color);
 }
-
 
 void Device::DrawTriangle(Vertex A, Vertex B, Vertex C, UINT32 color)
 {
-	if (A.coordinates.y == B.coordinates.y && B.coordinates.y == C.coordinates.y)
-		return;
-	if (A.coordinates.y > B.coordinates.y) std::swap(A, B);
-	if (A.coordinates.y > C.coordinates.y) std::swap(A, C);
-	if (B.coordinates.y > C.coordinates.y) std::swap(B, C);
-	int total_height = C.coordinates.y - A.coordinates.y;
+	Vector4f pa = A.coordinates;
+	Vector4f pb = B.coordinates;
+	Vector4f pc = C.coordinates;
 
-	for (int i = 0; i < total_height; i++)
+	//按y值大小按从小到大顺序排列
+	if (pa.y > pb.y) swap(pa, pb);
+	if (pa.y > pc.y) swap(pa, pc);
+	if (pb.y > pc.y) swap(pb, pc);
+
+	//两种特殊情况
+	//平顶
+	if (pa.y == pb.y)
 	{
-		bool second_half = i > B.coordinates.y - A.coordinates.y || B.coordinates.y == A.coordinates.y;
-		int segment_height = second_half ? C.coordinates.y - B.coordinates.y : B.coordinates.y - A.coordinates.y;
-		float alpha = (float)i / total_height;
-		float beta = (float)(i - (second_half ? B.coordinates.y - A.coordinates.y : 0)) / segment_height; //second_half ? (float)(i - B.y) / segment_height : (float)(i - A.y) / segment_height;
-		Vector4f X = A.coordinates + Vector4f(C.coordinates - A.coordinates) *alpha;
-		Vector4f Y = second_half ? B.coordinates + Vector4f(C.coordinates - B.coordinates)*beta : A.coordinates + Vector4f(B.coordinates - A.coordinates)*beta;
-		if (X.x > Y.x) swap(X, Y);
-		for (int x = X.x; x <= Y.x; x++)
+		if (pa.x < pb.x) swap(pa, pb);
+		for (int row = (int)pa.y; row <= (int)pc.y; row++)
+			ProcessScanLine(row, pb, pc, pa, pc, color);
+		return;
+	}
+
+	//平底
+	if (pc.y == pb.y)
+	{
+		if (pc.x < pb.x) swap(pb, pc);
+		for (int row = (int)pa.y; row <= (int)pc.y; row++)
+			ProcessScanLine(row, pa, pb, pc, pa, color);
+		return;
+	}
+
+	float dPaPb, dPaPc;
+	if (pb.y - pa.y > 0)
+		dPaPb = (pb.x - pa.x) / (pb.y - pa.y);
+	else
+		dPaPb = 0;
+
+	if (pc.y - pa.y > 0)
+		dPaPc = (pc.x - pa.x) / (pc.y - pa.y);
+	else
+		dPaPc = 0;
+
+	if (dPaPb > dPaPc)
+	{
+		for (int row = (int)pa.y; row<=(int)pc.y;row++)
 		{
-			float phi = Y.x == X.x ? 1.0f : (float)(x - X.x) / (float)(Y.x - X.x);
-			Vector4f P = Vector4f(X) + Vector4f(Y - X)*phi;
-			if (P.x > width || P.x < 0 || P.y>height || P.y < 0)
-				continue;
-			if (zbuffer[int(P.y)][int(P.x)] > P.z)
+			if (row < pb.y)
 			{
-				zbuffer[int(P.y)][int(P.x)] = P.z;
-				PutPixel(int(P.x), int(P.y), color);
+				ProcessScanLine(row, pa, pc, pb, pc, color);
+			}
+			else
+			{
+				ProcessScanLine(row, pa, pc, pb, pc, color);
+			}
+		}
+	}
+	else
+	{
+		for (int row = (int)pa.y; row <= (int)pc.y; row++)
+		{
+			if (row < pb.y)
+			{
+				ProcessScanLine(row, pa, pb, pc, pa, color);
+			}
+			else
+			{
+				ProcessScanLine(row, pb, pc, pa, pc, color);
 			}
 		}
 	}
 }
+
+
+
+//void Device::DrawTriangle(Vertex A, Vertex B, Vertex C, UINT32 color)
+//{
+//	if (A.coordinates.y == B.coordinates.y && B.coordinates.y == C.coordinates.y)
+//		return;
+//	if (A.coordinates.y > B.coordinates.y) std::swap(A, B);
+//	if (A.coordinates.y > C.coordinates.y) std::swap(A, C);
+//	if (B.coordinates.y > C.coordinates.y) std::swap(B, C);
+//	int total_height = C.coordinates.y - A.coordinates.y;
+//
+//	for (int i = 0; i < total_height; i++)
+//	{
+//		bool second_half = i > B.coordinates.y - A.coordinates.y || B.coordinates.y == A.coordinates.y;
+//		int segment_height = second_half ? C.coordinates.y - B.coordinates.y : B.coordinates.y - A.coordinates.y;
+//		float alpha = (float)i / total_height;
+//		float beta = (float)(i - (second_half ? B.coordinates.y - A.coordinates.y : 0)) / segment_height; //second_half ? (float)(i - B.y) / segment_height : (float)(i - A.y) / segment_height;
+//		Vector4f X = A.coordinates + Vector4f(C.coordinates - A.coordinates) *alpha;
+//		Vector4f Y = second_half ? B.coordinates + Vector4f(C.coordinates - B.coordinates)*beta : A.coordinates + Vector4f(B.coordinates - A.coordinates)*beta;
+//		if (X.x > Y.x) swap(X, Y);
+//		for (int x = X.x; x <= Y.x; x++)
+//		{
+//			float phi = Y.x == X.x ? 1.0f : (float)(x - X.x) / (float)(Y.x - X.x);
+//			Vector4f P = Vector4f(X) + Vector4f(Y - X)*phi;
+//			if (P.x > width || P.x < 0 || P.y>height || P.y < 0)
+//				continue;
+//			if (zbuffer[int(P.y)][int(P.x)] > P.z)
+//			{
+//				zbuffer[int(P.y)][int(P.x)] = P.z;
+//				PutPixel(int(P.x), int(P.y), color);
+//			}
+//		}
+//	}
+//}
 
 void Device::Render(Model& model, int op)
 {
@@ -349,8 +446,9 @@ void Device::Render(Model& model, int op)
 		0x00efefef,0x00eeffcc,0x00cc00ff,0x0015ffff,
 		0x00121212,0x00001233,0x5615cc,0x353578,
 		0x00ffffff};
+	UINT32 color1 = 0x00eeffcc;
 
-	transform.world = Matrix::TranslateMatrix(model.Position().x, model.Position().y, model.Position().z);
+	//transform.world = Matrix::TranslateMatrix(model.Position().x, model.Position().y, model.Position().z);
 	transform.world = Matrix::RotateMatrix(model.rotation.x, model.rotation.y, model.rotation.z, model.rotation.w);
 	transform.Update();
 
@@ -375,16 +473,17 @@ void Device::Render(Model& model, int op)
 		//	transform.Homogenize(re, re);
 		//	screen_coords[j] = re;//Vector3i(int((v.x + 1.)*width / 2.), int((v.y + 1.)*height / 2.),v.z);
 		//}
-		if (BackfaceCulling(re2,re3,re4,model.normals[i/2]))
-		{
-			DrawTriangleFrame(re2, re3, re4, 0x00cc00ff);
-		}
-		else
-		{
-			count_backface++;
-		}
+		DrawTriangleFrame(re2, re3, re4, color[i/2]);
+		//if (BackfaceCulling(re2,re3,re4,model.normals[i/2]))
+		//{
+		//	DrawTriangle(re2, re3, re4, color[i/2]);
+		//}
+		//else
+		//{
+		//	count_backface++;
+		//}
 	}
-	cout << count_backface << endl;
+	cout << count_backface<<endl;
 }
 
 

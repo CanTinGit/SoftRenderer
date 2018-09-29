@@ -72,10 +72,10 @@ Matrix Matrix::operator*(const Matrix& a)
 Vector4f Matrix::operator*(const Vector4f& a) 
 {
 	Vector4f v;
-	v.x = a.x * m[0][0] + a.y * m[0][1] + a.z *m[0][2] + a.w * m[0][3];
-	v.y = a.x * m[1][0] + a.y * m[1][1] + a.z *m[1][2] + a.w * m[1][3];
-	v.z = a.x * m[2][0] + a.y * m[2][1] + a.z *m[2][2] + a.w * m[2][3];
-	v.w = a.x * m[3][0] + a.y * m[3][1] + a.z *m[3][2] + a.w * m[3][3];
+	v.x = a.x * m[0][0] + a.y * m[1][0] + a.z *m[2][0] + a.w * m[3][0];
+	v.y = a.x * m[0][1] + a.y * m[1][1] + a.z *m[2][1] + a.w * m[3][1];
+	v.z = a.x * m[0][2] + a.y * m[1][2] + a.z *m[2][2] + a.w * m[3][2];
+	v.w = a.x * m[0][3] + a.y * m[1][3] + a.z *m[2][3] + a.w * m[3][3];
 	return v;
 }
 
