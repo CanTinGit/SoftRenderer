@@ -120,6 +120,7 @@ int Screen_Close(void)
 }
 
 // win32 event handler
+// TODO: Click once
 static LRESULT Screen_Events(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
 	PAINTSTRUCT ps;

@@ -1,6 +1,7 @@
 #include "render.h"
 #include <ctime>
 
+
 int face = 0;
 
 Vector4i RandomColor(int index)
@@ -81,6 +82,33 @@ void Transform::Set_Perspective(float fovy, float aspect, float near_z, float fa
 	projection.m[3][2] = -near_z * far_z / (far_z - near_z);
 	projection.m[2][3] = 1;
 }
+
+void Texture::Load(const char* filename)
+{
+	buf = cv::imread(filename);
+	width = buf.size().width;
+	height = buf.size().height;
+	if (buf.empty()) cout << "Load Texture Error" << endl;
+}
+
+Vector4i Texture::Map(float tu, float tv)
+{
+	Vector4i result;
+	result = { 0,0,0,0 };
+	if (buf.empty()) return result;
+	int u = (int)(tu*width) % width;
+	int v = (int)(tv*height) % height;
+	if (u < 0 || v < 0)
+		cout << tu << ' ' << tv << endl;
+	u = u >= 0 ? u : -u;
+	v = v >= 0 ? v : -v;
+
+	cv::Vec3b tex_w = buf.at<cv::Vec3b>(v, u);
+	result = { tex_w[2],tex_w[1],tex_w[0],0 };
+	return result;
+}
+
+
 
 ////////////////
 //‰÷»æ≥ÈœÛ…Ë±∏//

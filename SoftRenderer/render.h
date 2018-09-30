@@ -3,6 +3,7 @@
 #include "mymath.h"
 #include "camera.h"
 #include <string>
+#include <opencv2/opencv.hpp>
 
 using namespace std;
 
@@ -34,7 +35,13 @@ public:
 
 class Texture
 {
-	
+public:
+	cv::Mat buf;
+	int width;
+	int height;
+	string name;
+	void Load(const char *filename);
+	Vector4i Map(float tu, float tv);
 };
 
 //扫描线相关属性，便于插值
