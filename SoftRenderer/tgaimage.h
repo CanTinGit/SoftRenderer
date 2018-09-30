@@ -42,7 +42,6 @@ struct TGAColor {
 		bgra[0] = v;
 	}
 
-
 	TGAColor(const unsigned char *p, unsigned char bpp) : bgra(), bytespp(bpp) {
 		for (int i = 0; i < (int)bpp; i++) {
 			bgra[i] = p[i];

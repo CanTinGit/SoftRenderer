@@ -1,13 +1,15 @@
 #include "render.h"
 #include <ctime>
 
+int face = 0;
+
 Vector4i RandomColor(int index)
 {
 	srand((unsigned)time(NULL));
 	Vector4i color;
 	for (int i = 0; i < 3; i++)
 	{
-		unsigned seed = rand() % 100 +index;
+		unsigned seed = rand() % 100 + index;
 		srand(seed);
 		color[i] = rand() % 256;
 	}
@@ -54,8 +56,7 @@ void Transform::Apply(Vertex &op, Vertex &re)
 	re.coordinates = transform * op.local;
 	re.worldCoordinates = world * op.local;
 	re.normal = world * op.normal;
-	re.u = op.u;
-	re.v = op.v;
+	re.texcoord = op.texcoord;
 	re.color = op.color;
 }
 
@@ -77,44 +78,16 @@ void Transform::Set_Perspective(float fovy, float aspect, float near_z, float fa
 	projection.m[0][0] = (float)(fax / aspect);
 	projection.m[1][1] = (float)(fax);
 	projection.m[2][2] = far_z / (far_z - near_z);
-	projection.m[3][2] = - near_z * far_z / (far_z - near_z);
+	projection.m[3][2] = -near_z * far_z / (far_z - near_z);
 	projection.m[2][3] = 1;
 }
-
-Mesh::Mesh(int count, int face_count)
-{
-	if (!count) return;
-	this->vertex_cout = count;
-	this->face_count = face_count;
-	faces = NULL;
-	vertices = NULL;
-	if (count) vertices = new Vertex[count];
-	if (face_count) faces = new Face[face_count];
-}
-
-Mesh::~Mesh()
-{
-	vertices = NULL;
-	faces = NULL;
-}
-
-void Mesh::Get_face_normal(int i, Vector4f& normal)
-{
-	Vector4f edge1, edge2;
-	edge1 = vertices[faces[i].v3].worldCoordinates - vertices[faces[i].v1].worldCoordinates;
-	edge2 = vertices[faces[i].v2].worldCoordinates - vertices[faces[i].v1].worldCoordinates;
-	normal = edge2 ^ edge1;
-}
-
-
-
 
 ////////////////
 //渲染抽象设备//
 ////////////////
 
 //初始化设备
-Device::Device(int w, int h,void*fb)
+Device::Device(int w, int h, void*fb)
 {
 	width = w;
 	height = h;
@@ -133,7 +106,7 @@ Device::Device(int w, int h,void*fb)
 	zbuf = (char*)ptr + width * height * 4;
 	ptr += width * height * 8;
 	if (fb != NULL) framebuf = (char*)fb;
-	for (j = 0; j< height; j++)
+	for (j = 0; j < height; j++)
 	{
 		framebuffer[j] = (UINT32*)(framebuf + width * 4 * j);
 		zbuffer[j] = (float*)(zbuf + width * 4 * j);
@@ -162,14 +135,14 @@ void Device::Clear(int mode)
 		UINT32 cc = (height - 1 - y) * 230 / (height - 1);
 		cc = (cc << 16) | (cc << 8) | cc;
 		if (mode == 0) cc = background;
-		for ( x = width; x > 0; dst++,x--)
+		for (x = width; x > 0; dst++, x--)
 		{
 			dst[0] = cc;
 		}
 	}
 
 	//将深度设置为足够大的默认值
-	for ( y = 0; y < height; y++)
+	for (y = 0; y < height; y++)
 	{
 		float *dst = zbuffer[y];
 		for (x = width; x > 0; dst++, x--) dst[0] = 65535.f;
@@ -183,18 +156,21 @@ bool Device::BackfaceCulling(Vertex p0, Vertex p1, Vertex p2, Vector4f normal)
 	//Vector4f normal;
 	float temp = float(1) / float(3);
 	//normal = (p0.normal + p1.normal + p2.normal) * temp;
+	Vector4f edge1 = p2.worldCoordinates - p0.worldCoordinates;
+	Vector4f edge2 = p1.worldCoordinates - p0.worldCoordinates;
+	Vector4f n = edge1 ^ edge2;
 
 	//计算三顶点的中心
 	Vector4f center_point;
 	center_point = (p0.worldCoordinates + p1.worldCoordinates + p2.worldCoordinates) * temp;
-	if (my_camera.plane_camera_cos(center_point, normal)> 0) return true;
+	if (my_camera.plane_camera_cos(center_point, n) > 0) return true;
 	else return false;
 }
 
 //像素填充函数
 void Device::PutPixel(int x, int y, UINT32& color)
 {
-	if (((UINT32)x) < (UINT32)width && ((UINT32)y)<(UINT32)height) 
+	if (((UINT32)x) < (UINT32)width && ((UINT32)y) < (UINT32)height)
 	{
 		framebuffer[y][x] = color;
 	}
@@ -205,9 +181,9 @@ void Device::PutPixel(int x, int y, float z, UINT32& color)
 {
 	if (((UINT32)x) < (UINT32)width && ((UINT32)y) < (UINT32)height)
 	{
-		if ( z >= zbuffer[y][x]) return;
+		if (z >= zbuffer[y][x]) return;
 		zbuffer[y][x] = z;
-		framebuffer[y][x] =color;
+		framebuffer[y][x] = color;
 	}
 }
 
@@ -353,7 +329,6 @@ void Device::ProcessScanLine(ScanLineData scanline, Vector4f& pa, Vector4f& pb, 
 	}
 }
 
-
 void Device::DrawTriangleFrame(Vertex A, Vertex B, Vertex C, UINT32 color)
 {
 	if (A.coordinates.y == B.coordinates.y && B.coordinates.y == C.coordinates.y)
@@ -363,9 +338,9 @@ void Device::DrawTriangleFrame(Vertex A, Vertex B, Vertex C, UINT32 color)
 	p2 = B.coordinates;
 	p3 = C.coordinates;
 
-	DrawLine(p1, p2,color);
+	DrawLine(p1, p2, color);
 	DrawLine(p1, p3, color);
-	DrawLine(p2, p3,color);
+	DrawLine(p2, p3, color);
 }
 
 void Device::DrawTriangleFlat(Vertex A, Vertex B, Vertex C, UINT32 color)
@@ -385,7 +360,7 @@ void Device::DrawTriangleFlat(Vertex A, Vertex B, Vertex C, UINT32 color)
 		if (pa.x < pb.x) swap(pa, pb);
 		for (int row = (int)pa.y; row <= (int)pc.y; row++)
 		{
-			ProcessScanLine(row, pb, pc, pa, pc, color);                     
+			ProcessScanLine(row, pb, pc, pa, pc, color);
 		}
 		return;
 	}
@@ -415,7 +390,7 @@ void Device::DrawTriangleFlat(Vertex A, Vertex B, Vertex C, UINT32 color)
 
 	if (dPaPb > dPaPc)
 	{
-		for (int row = (int)pa.y; row<=(int)pc.y;row++)
+		for (int row = (int)pa.y; row <= (int)pc.y; row++)
 		{
 			if (row < pb.y)
 			{
@@ -573,16 +548,16 @@ void Device::Render(Model& model, int op)
 	UINT32 color[] = { 0x00ff0000 ,0x0000ff00,0x000000ff,0x00ffff00,
 		0x00efefef,0x00eeffcc,0x00cc00ff,0x0015ffff,
 		0x00121212,0x00001233,0x5615cc,0x353578,
-		0x00ffffff};
+		0x00ffffff };
 	Vector4i myColor = { 0,255,0,0 };
 	UINT32 color1 = ConvertRGBTOUINT(myColor);
 	UINT32 color2 = color[0];
 
-	//transform.world = Matrix::TranslateMatrix(model.Position().x, model.Position().y, model.Position().z);
+	transform.world = Matrix::TranslateMatrix(model.Position().x, model.Position().y, model.Position().z);
 	transform.world = Matrix::RotateMatrix(model.rotation.x, model.rotation.y, model.rotation.z, model.rotation.w);
 	transform.Update();
 	Clear(0);
-	Vertex re2, re3, re4,re5;
+	Vertex re2, re3, re4, re5;
 	int count_backface = 0;
 
 	//每个顶点据时间产生随机颜色
@@ -597,23 +572,27 @@ void Device::Render(Model& model, int op)
 		transform.Homogenize(re3.coordinates, re3.coordinates);
 		transform.Apply(model.vertices[model.faces[i][2]], re4);
 		transform.Homogenize(re4.coordinates, re4.coordinates);
-		DrawTriangleFlat(re2, re3, re4,color[i/2]);//画渐变三角形
+		face = i;
+		////DrawTriangleFrame(re2, re3, re4, color[i / 2]);
+		if (!BackfaceCulling(re2, re3, re4, model.normals[i / 2]))
+		{
+			continue;
+		}
+		switch (op)
+		{
+		case 0:DrawTriangleFrame(re2, re3, re4, color[i / 2]); break;
+		case 1:DrawTriangleFlat(re2, re3, re4, color[i / 2]); break;
+		case 2:DrawTriangleFlat(re2, re3, re4); break;
+		}
+		/*DrawTriangleFlat(re2, re3, re4, color[i / 2]);*/
 		//if (BackfaceCulling(re2,re3,re4,model.normals[i/2]))
 		//{
-		//	DrawTriangle(re2, re3, re4, color[i/2]);
+		//	DrawTriangleFlat(re2, re3, re4, color[i / 2]);
 		//}
 		//else
 		//{
 		//	count_backface++;
 		//}
 	}
-	//cout << count_backface<<endl;
+	cout << count_backface<<endl;
 }
-
-
-
-
-
-
-
-

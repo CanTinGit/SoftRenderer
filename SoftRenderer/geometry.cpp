@@ -1,6 +1,6 @@
 #include "geometry.h"
 
-template <> template <> Vector3D<int>::Vector3D(const Vector3D<float> &v) 
+template <> template <> Vector3D<int>::Vector3D(const Vector3D<float> &v)
 {
 	x = int(v.x + 0.5f);
 	y = int(v.y + 0.5f);
@@ -28,12 +28,11 @@ template <> template <> Vector4D<float>::Vector4D(const Vector4D<int> &v)
 	z = v.z;
 }
 
-Matrix::Matrix(int r,int c) {
+Matrix::Matrix(int r, int c) {
 	m = std::vector<std::vector<float> >(r, std::vector<float>(c, 0.f));
 	rows = r;
 	cols = c;
 }
-
 
 int Matrix::Cols() {
 	return cols;
@@ -48,7 +47,6 @@ std::vector<float>& Matrix::operator[](const int i)
 	assert(i >= 0 && i < rows);
 	return m[i];
 }
-
 
 Matrix Matrix::operator*(const Matrix& a)
 {
@@ -69,7 +67,7 @@ Matrix Matrix::operator*(const Matrix& a)
 	return result;
 }
 
-Vector4f Matrix::operator*(const Vector4f& a) 
+Vector4f Matrix::operator*(const Vector4f& a)
 {
 	Vector4f v;
 	v.x = a.x * m[0][0] + a.y * m[1][0] + a.z *m[2][0] + a.w * m[3][0];
@@ -92,7 +90,6 @@ Matrix Matrix::operator*(float s)
 	return result;
 }
 
-
 Matrix Matrix::Identity(int dimension) {
 	Matrix E(dimension, dimension);
 	for (int i = 0; i < dimension; i++)
@@ -105,7 +102,7 @@ Matrix Matrix::Identity(int dimension) {
 	return E;
 }
 
-Matrix Matrix::Transpose() 
+Matrix Matrix::Transpose()
 {
 	Matrix result(cols, rows);
 	for (int i = 0; i < rows; i++)
@@ -116,13 +113,12 @@ Matrix Matrix::Transpose()
 		}
 	}
 	return result;
-
 }
 
-Matrix Matrix::Inverse() 
+Matrix Matrix::Inverse()
 {
 	assert(rows == cols);
-	Matrix result(rows, cols*2);
+	Matrix result(rows, cols * 2);
 
 	for (int i = 0; i < rows; i++)
 		for (int j = 0; j < cols; j++)
@@ -131,11 +127,11 @@ Matrix Matrix::Inverse()
 	for (int i = 0; i < rows; i++)
 		result[i][i + cols] = 1;
 
-	for (int i = 0; i < rows-1; i++)
+	for (int i = 0; i < rows - 1; i++)
 	{
 		for (int j = result.cols - 1; j >= 0; j--)
 			result[i][j] /= result[i][i];
-		for (int k = i+1; k < rows; k++)
+		for (int k = i + 1; k < rows; k++)
 		{
 			float coeff = result[k][i];
 			for (int j = 0; j < result.cols; j++)
@@ -146,9 +142,9 @@ Matrix Matrix::Inverse()
 	for (int i = result.cols - 1; i >= rows - 1; i--)
 		result[rows - 1][i] /= result[rows - 1][rows - 1];
 
-	for (int i = rows-1; i > 0; i--)
+	for (int i = rows - 1; i > 0; i--)
 	{
-		for (int j = i-1; j >= 0; j--)
+		for (int j = i - 1; j >= 0; j--)
 		{
 			float coeff = result[j][i];
 			for (int k = 0; k < result.cols; k++)
@@ -244,7 +240,6 @@ Matrix Matrix::RotateMatrix(float x, float y, float z, float theta) {
 	E.m[3][3] = 1.0f;
 	return E;
 }
-
 
 void Color::Set(UINT32 x, float s) {
 	uint32 = x;

@@ -1,18 +1,18 @@
 ////=====================================================================
-//// 
+////
 //// mini3d.c - Mini Software Render All-In-One
 ////
 //// build:
 ////   mingw: gcc -O3 mini3d.c -o mini3d.exe -lgdi32
-////   msvc:  cl -O2 -nologo mini3d.c 
+////   msvc:  cl -O2 -nologo mini3d.c
 ////
 //// history:
 ////   2007.7.01  skywind  create this file as a tutorial
 ////   2007.7.02  skywind  implementate texture and color render
 ////   2008.3.15  skywind  fixed a trapezoid issue
 ////   2015.8.09  skywind  rewrite with more comment
-////   2015.8.12  skywind  adjust interfaces for clearity 
-//// 
+////   2015.8.12  skywind  adjust interfaces for clearity
+////
 ////=====================================================================
 //#include <stdio.h>
 //#include <stdlib.h>
@@ -271,7 +271,7 @@
 //	transform_update(ts);
 //}
 //
-//// 将矢量 x 进行 project 
+//// 将矢量 x 进行 project
 //void transform_apply(const transform_t *ts, vector_t *y, const vector_t *x) {
 //	matrix_apply(y, x, &ts->transform);
 //}

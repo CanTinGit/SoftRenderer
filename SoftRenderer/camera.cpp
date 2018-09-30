@@ -1,6 +1,6 @@
 #include "camera.h"
 
-Camera::Camera() 
+Camera::Camera()
 {
 	position.x = 0;
 	position.y = 0;
@@ -44,7 +44,7 @@ void Camera::SetCamera(Vector4f camera_lookat, Vector4f camera_up)
 	view.m[1][0] = u.y;
 	view.m[2][0] = u.z;
 	view.m[3][0] = -(position*u);
-	
+
 	view.m[0][1] = v.x;
 	view.m[1][1] = v.y;
 	view.m[2][1] = v.z;
@@ -81,10 +81,10 @@ void Camera::SetCamera(Vector4f camera_lookat, Vector4f camera_up)
 	//view.m[3][3] = 1;
 }
 
-float Camera::plane_camera_cos(Vector4f center,Vector4f normal)
+float Camera::plane_camera_cos(Vector4f center, Vector4f normal)
 {
 	Vector4f eye_dir;
-	eye_dir = center - position;
+	eye_dir = position - center;
 	eye_dir.normalize();
 	normal.normalize();
 	return normal * eye_dir;

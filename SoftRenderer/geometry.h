@@ -17,8 +17,8 @@ template <class t> class Vector4D;
 template <class t> class Vector2D {
 public:
 	t x, y;
-	Vector2D(): x(0),y(0){}
-	Vector2D(t _x,t _y): x(_x), y(_y){}
+	Vector2D() : x(0), y(0) {}
+	Vector2D(t _x, t _y) : x(_x), y(_y) {}
 	inline Vector2D<t> operator +(const Vector2D<t> &v) const { return Vector2D<t>(x + v.x, y + v.y); }
 	inline Vector2D<t> operator -(const Vector2D<t> &v) const { return Vector2D<t>(x - v.x, y - v.y); }
 	inline Vector2D<t> operator *(float f)          const { return Vector2D<t>(x*f, y*f); }
@@ -66,9 +66,9 @@ public:
 
 template <class t> struct Vector4D {
 public:
-	t x, y, z,w;
-	Vector4D() : x(0), y(0), z(0),w(1) {}
-	Vector4D(t _x, t _y, t _z,t _w) : x(_x), y(_y), z(_z),w(_w) {}
+	t x, y, z, w;
+	Vector4D() : x(0), y(0), z(0), w(1) {}
+	Vector4D(t _x, t _y, t _z, t _w) : x(_x), y(_y), z(_z), w(_w) {}
 	template <class u> Vector4D<t>(const Vector4D<u> &v);
 	Vector4D<t>(const Vector4D<t> &v) : x(t()), y(t()), z(t()) { *this = v; }
 	Vector4D<t> & operator =(const Vector4D<t> &v)
@@ -92,10 +92,10 @@ public:
 		return *this;
 	}
 
-	inline Vector4D<t> operator ^(const Vector4D<t> &v) const { return Vector4D<t>(y*v.z - z * v.y, z*v.x - x * v.z, x*v.y - y * v.x,1); }
-	inline Vector4D<t> operator +(const Vector4D<t> &v) const { return Vector4D<t>(x + v.x, y + v.y, z + v.z,1); }
-	inline Vector4D<t> operator -(const Vector4D<t> &v) const { return Vector4D<t>(x - v.x, y - v.y, z - v.z,1); }
-	inline Vector4D<t> operator *(float f)          const { return Vector4D<t>(x*f, y*f, z*f,1); }
+	inline Vector4D<t> operator ^(const Vector4D<t> &v) const { return Vector4D<t>(y*v.z - z * v.y, z*v.x - x * v.z, x*v.y - y * v.x, 1); }
+	inline Vector4D<t> operator +(const Vector4D<t> &v) const { return Vector4D<t>(x + v.x, y + v.y, z + v.z, 1); }
+	inline Vector4D<t> operator -(const Vector4D<t> &v) const { return Vector4D<t>(x - v.x, y - v.y, z - v.z, 1); }
+	inline Vector4D<t> operator *(float f)          const { return Vector4D<t>(x*f, y*f, z*f, 1); }
 	inline t       operator *(const Vector4D<t> &v) const { return x * v.x + y * v.y + z * v.z; }
 
 	t& operator [](const int i) { if (i <= 0)return x; else if (i == 1) return y; else return z; }
@@ -106,8 +106,8 @@ public:
 		if (norm() != 0.0f)
 		{
 			*this = (*this)*(l / norm());
-		} 
-		(*this).w = (t)1; 
+		}
+		(*this).w = (t)1;
 		return *this;
 	}
 	template <class > friend std::ostream& operator<<(std::ostream& s, Vector4D<t>& v);
@@ -136,7 +136,7 @@ template <class t> std::ostream& operator<<(std::ostream& s, Vector3D<t>& v) {
 }
 
 template <class t> std::ostream& operator<<(std::ostream& s, Vector4D<t>& v) {
-	s << "(" << v.x << ", " << v.y << ", " << v.z <<", " << v.w <<")\n";
+	s << "(" << v.x << ", " << v.y << ", " << v.z << ", " << v.w << ")\n";
 	return s;
 }
 
@@ -147,7 +147,7 @@ class Matrix
 public:
 	std::vector<std::vector<float>> m;
 	int rows, cols;
-	Matrix(int r=Default_ALLOC, int c = Default_ALLOC);
+	Matrix(int r = Default_ALLOC, int c = Default_ALLOC);
 	inline int Rows();
 	inline int Cols();
 
@@ -158,14 +158,12 @@ public:
 	Matrix operator*(float s);
 	Matrix Transpose();
 	Matrix Inverse();
-	
+
 	static Matrix ZeroMatrix(int dimension);
 	static Matrix TranslateMatrix(float x, float y, float z);
 	static Matrix ScaleMatrix(float x, float y, float z);
 	static Matrix RotateMatrix(float x, float y, float z, float theta);
-
 };
-
 
 class Color
 {
@@ -190,5 +188,17 @@ public:
 	Vector4f coordinates;			 //投影后的坐标
 	Vector4f worldCoordinates;		 //原世界坐标
 	Vector4i color;
-	float u, v;
+	Vector2f texcoord;
+	float rhw;
+
+	void Rhw_Init()
+	{
+		float rhw = 1.0f / coordinates.w;
+		this->rhw = rhw;
+		texcoord.x *= rhw;
+		texcoord.y *= rhw;
+		color.x *= rhw;
+		color.y *= rhw;
+		color.z *= rhw;
+	}
 };

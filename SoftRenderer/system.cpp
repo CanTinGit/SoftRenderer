@@ -15,7 +15,7 @@ int screen_width, screen_height, screen_exit = 0;
 int screen_mx = 0, screen_my = 0, screen_mb = 0;
 int screen_keys[512]; //当前键盘按下状态
 static HWND screen_handle = NULL;  //窗口句柄,类似身份证号,通过此即可找到窗口类，窗口指针
-static HDC screen_dc = NULL;       
+static HDC screen_dc = NULL;
 static HBITMAP screen_hb = NULL;
 static HBITMAP screen_ob = NULL;   //老的Bitmap
 unsigned char *screen_fb = NULL;   //Frame buffer
@@ -65,7 +65,7 @@ int Screen_Init(int width, int height, const TCHAR *title)
 	screen_dc = CreateCompatibleDC(hdc);
 	ReleaseDC(screen_handle, hdc);
 
-	screen_hb = CreateDIBSection(screen_dc,&bi,DIB_RGB_COLORS,&ptr,0,0);
+	screen_hb = CreateDIBSection(screen_dc, &bi, DIB_RGB_COLORS, &ptr, 0, 0);
 	if (screen_hb == NULL) return -3;
 
 	screen_ob = (HBITMAP)SelectObject(screen_dc, screen_hb);
@@ -126,18 +126,18 @@ static LRESULT Screen_Events(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 	HDC hdc;
 	switch (msg)
 	{
-		case WM_CLOSE: screen_exit = 1; break;
-		case WM_KEYDOWN: screen_keys[wParam & 511] = 1; break;
-		case WM_KEYUP: screen_keys[wParam & 511] = 0; break;
-		default: return DefWindowProc(hwnd, msg, wParam, lParam);
+	case WM_CLOSE: screen_exit = 1; break;
+	case WM_KEYDOWN: screen_keys[wParam & 511] = 1; break;
+	case WM_KEYUP: screen_keys[wParam & 511] = 0; break;
+	default: return DefWindowProc(hwnd, msg, wParam, lParam);
 	}
 	return 0;
 }
 
-void Screen_Dispatch(void) 
+void Screen_Dispatch(void)
 {
 	MSG msg;
-	while(1)
+	while (1)
 	{
 		if (!PeekMessage(&msg, NULL, 0, 0, PM_NOREMOVE)) break;
 		if (!GetMessage(&msg, NULL, 0, 0)) break;
@@ -152,33 +152,6 @@ void Screen_update(void)
 	Screen_Dispatch();
 }
 
-/*测试用*/
-Vector4f all_verticesJson[] = {
-	{ -1, 1,  -1, 1 },
-	{ -1, -1,  1, 1 },
-	{ -1, -1, -1, 1 },
-	{ -1,  1, 1, 1 },
-	{ 1, -1, 1, 1 },
-	{ 1, 1, 1, 1 },
-	{ 1,  -1, -1, 1 },
-	{ 1, 1, -1, 1 }
-};
-Face facesJson[] = {
-	{0,1,2},{3,4,1},{5,6,4},{7,2,6},
-	{4,2,1},{3,7,5},{0,3,1},{3,5,4},
-	{5,7,6},{7,0,2},{4,6,2},{3,0,7}
-};
-void set_mesh_vertices_faces(Mesh &mesh, Vector4f pd[], Face faces1[]) {
-	//设置mesh的顶点坐标-
-	for (int i = 0; i < mesh.vertex_cout; i++) {
-		mesh.vertices[i].worldCoordinates = pd[i];
-	}
-	for (int i = 0; i < mesh.face_count; i++) {
-		mesh.faces[i] = faces1[i];
-	}
-}
-/*测试用*/
-
 int main()
 {
 	//Mesh mesh(8, 12);
@@ -191,7 +164,7 @@ int main()
 		return -1;
 
 	Model *model = new Model("Resources/cube.obj");
-	model->SetRotation(0, 1, 0, 3);
+	model->SetRotation(0, 1, 0, -0.5);
 	Vector4f look_at(0, 0, 0, 1), up = { 0,1,0,1 };
 	Device my_device(screen_width, screen_height, screen_fb);
 	my_device.my_camera.SetPosition(0, 0, -2);
@@ -206,8 +179,8 @@ int main()
 
 	my_device.Clear(0);
 	float theta = 0;
-	int op = 0;
-	while (screen_exit==0 && screen_keys[VK_ESCAPE] == 0) 
+	int op = 1;
+	while (screen_exit == 0 && screen_keys[VK_ESCAPE] == 0)
 	{
 		Screen_Dispatch();
 		my_device.Clear(0);
@@ -222,11 +195,9 @@ int main()
 		if (screen_keys[VK_SPACE])
 		{
 			op++;
-			op %= 5;
+			op %= 3;
 		}
 		Screen_update();
 		Sleep(1);
 	}
-
 }
-

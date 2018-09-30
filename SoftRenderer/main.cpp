@@ -136,11 +136,11 @@
 //	Vector3f u = v0 ^ v1;
 //	if (std::abs(u.z) > 1e-2)
 //		return Vector3f(1.f - (u.x + u.y) / u.z, u.y / u.z, u.x / u.z);
-//	return Vector3f(-1, 1, 1); 
+//	return Vector3f(-1, 1, 1);
 //}
 ////
 ////void triangle(Vector2i t0, Vector2i t1, Vector2i t2, TGAImage &image, TGAColor color) {
-////	// sort the vertices, t0, t1, t2 lower−to−upper (bubblesort yay!) 
+////	// sort the vertices, t0, t1, t2 lower−to−upper (bubblesort yay!)
 ////	if (t0.y > t1.y) std::swap(t0, t1);
 ////	if (t0.y > t2.y) std::swap(t0, t2);
 ////	if (t1.y > t2.y) std::swap(t1, t2);
@@ -148,23 +148,23 @@
 ////	for (int y = t0.y; y <= t1.y; y++) {
 ////		int segment_height = t1.y - t0.y + 1;
 ////		float alpha = (float)(y - t0.y) / total_height;
-////		float beta = (float)(y - t0.y) / segment_height; // be careful with divisions by zero 
+////		float beta = (float)(y - t0.y) / segment_height; // be careful with divisions by zero
 ////		Vector2i A = t0 + (t2 - t0)*alpha;
 ////		Vector2i B = t0 + (t1 - t0)*beta;
 ////		if (A.x > B.x) std::swap(A, B);
 ////		for (int j = A.x; j <= B.x; j++) {
-////			image.set(j, y, color); // attention, due to int casts t0.y+i != A.y 
+////			image.set(j, y, color); // attention, due to int casts t0.y+i != A.y
 ////		}
 ////	}
 ////	for (int y = t1.y; y <= t2.y; y++) {
 ////		int segment_height = t2.y - t1.y + 1;
 ////		float alpha = (float)(y - t0.y) / total_height;
-////		float beta = (float)(y - t1.y) / segment_height; // be careful with divisions by zero 
+////		float beta = (float)(y - t1.y) / segment_height; // be careful with divisions by zero
 ////		Vector2i A = t0 + (t2 - t0)*alpha;
 ////		Vector2i B = t1 + (t2 - t1)*beta;
 ////		if (A.x > B.x) std::swap(A, B);
 ////		for (int j = A.x; j <= B.x; j++) {
-////			image.set(j, y, color); // attention, due to int casts t0.y+i != A.y 
+////			image.set(j, y, color); // attention, due to int casts t0.y+i != A.y
 ////		}
 ////	}
 ////}
@@ -237,7 +237,7 @@
 ////	Vector2f bboxmin(image.get_width(), image.get_height());
 ////	Vector2f bboxmax(0, 0);
 ////	Vector2f clamp(image.get_width()-1, image.get_height()-1);
-////	
+////
 ////	bboxmin.x = std::max(0.0f, std::min(bboxmin.x, pointA.x));
 ////	bboxmin.y = std::max(0.0f,std::min(bboxmin.y, pointA.y));
 ////	bboxmax.x = std::min(clamp.x, std::max(bboxmax.x, pointA.x));
@@ -277,12 +277,12 @@
 //	return Vector3f(int((v.x + 1.)*width / 2. + .5), int((v.y + 1.)*height / 2. + .5), v.z);
 //}
 //
-//void main() 
+//void main()
 //{
 //	Model *model = new Model("obj/african_head.obj");
-//	TGAImage image(width, height, TGAImage::RGB);	
+//	TGAImage image(width, height, TGAImage::RGB);
 //
-//	//float zbuffer[800][800];      
+//	//float zbuffer[800][800];
 //	int* zbuffer = new int[width*height];
 //	//Initialize Zbuffer
 //	for (int i = 0; i < width*height; i++)
@@ -318,13 +318,13 @@
 //
 //		float lightDiffuse = n.normalize()*light;
 //
-//		if (lightDiffuse > 0) 
+//		if (lightDiffuse > 0)
 //		{
 //			TGAColor lightColor(lightDiffuse * 255, lightDiffuse * 255, lightDiffuse * 255, 255);
 //			triangle(screen_coords[0], screen_coords[1], screen_coords[2], zbuffer, image, lightColor);
 //			//Atriangle(screen_coords[0], screen_coords[1], screen_coords[2], image,lightDiffuse,zbuffer);
 //		}
-//		
+//
 //	}
 //
 //	image.flip_vertically();

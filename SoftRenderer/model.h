@@ -5,7 +5,6 @@
 #include <vector>
 #include "geometry.h"
 
-
 class Model {
 public:
 	Vector4f position;

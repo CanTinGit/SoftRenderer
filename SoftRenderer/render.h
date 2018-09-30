@@ -14,21 +14,6 @@ inline int CMID(int x, int min, int max) { return (x < min) ? min : ((x > max) ?
 
 typedef  struct { int v1, v2, v3; } Face;
 
-class Mesh
-{
-public:
-	string name;
-	Vertex *vertices;
-	Face *faces;
-	Vector4f position;
-	Vector4f Rotation;
-	int vertex_cout, face_count;
-
-	void Get_face_normal(int i, Vector4f &normal);
-	Mesh(int count = 0, int face_count = 0);
-	~Mesh();
-};
-
 class Transform
 {
 public:
@@ -45,7 +30,11 @@ public:
 	//void Apply(Vertex &op, Vertex &re);       //对顶点做投影变换
 	void Homogenize(Vector4f &op, Vector4f &re);
 	void Set_Perspective(float fovy, float aspect, float near_z, float far_z);
+};
 
+class Texture
+{
+	
 };
 
 //扫描线相关属性，便于插值
@@ -64,7 +53,7 @@ public:
 	float va, vb, vc, vd;
 };
 
-class Device 
+class Device
 {
 public:
 	Transform transform;      //变换矩阵
@@ -94,8 +83,6 @@ public:
 	void DrawTriangleFrame(Vertex A, Vertex B, Vertex C, UINT32 color);
 	void DrawTriangleFlat(Vertex A, Vertex B, Vertex C, UINT32 color);
 	void DrawTriangleFlat(Vertex A, Vertex B, Vertex C);
-
-
 
 	void Render(Model &model, int op);
 };

@@ -10,7 +10,6 @@
 #include "model.h"
 
 Model::Model(const char *filename) : vertices(), faces() {
-	
 	position.x = 0;
 	position.y = 0;
 	position.z = 0;
@@ -21,8 +20,8 @@ Model::Model(const char *filename) : vertices(), faces() {
 	rotation.z = 0;
 	rotation.w = 0;
 
-	dir = Vector4f(0, 0, 1,0);
-	
+	dir = Vector4f(0, 0, 1, 0);
+
 	max_radius = 0;
 	int radius = 0;
 
@@ -63,21 +62,22 @@ Model::Model(const char *filename) : vertices(), faces() {
 			iss >> trash >> trash2;
 			Vector4f normal;
 			for (int i = 0; i < 3; i++) iss >> normal[i];
+			normal.z = -normal.z;
 			normals.push_back(normal);
 		}
 		else if (!line.compare(0, 2, "f ")) {
 			std::vector<int> f;
 			int itrash, idx, idx_vt, idx_vn;
 			iss >> trash;
-			while (iss >> idx >> trash >> idx_vt >> trash >> idx_vn) 
+			while (iss >> idx >> trash >> idx_vt >> trash >> idx_vn)
 			{
 				idx--; // in wavefront obj all indices start at 1, not zero
 				idx_vt--;
 				idx_vn--;
 				f.push_back(idx);
-				vertices[idx].normal = normals[idx_vn];
-				vertices[idx].u = uvs[idx_vt].x;
-				vertices[idx].v = uvs[idx_vt].y;
+				//vertices[idx].normal = normals[idx_vn];
+				vertices[idx].texcoord.x = uvs[idx_vt].x;
+				vertices[idx].texcoord.y = uvs[idx_vt].y;
 			}
 			faces.push_back(f);
 		}
@@ -120,7 +120,6 @@ void Model::SetRotation(float x, float y, float z, float theta)
 	rotation.w = theta;
 }
 
-
 Vector4f Model::Position()
 {
 	return position;
@@ -133,7 +132,7 @@ float Model::Max_Radius()
 
 void Model::UpdateWorldPosition()
 {
-	for(int i = 0; i<vertices.size();i++)
+	for (int i = 0; i < vertices.size(); i++)
 	{
 		vertices[i].worldCoordinates;
 	}

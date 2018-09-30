@@ -93,7 +93,7 @@
 //	return false;
 //}
 
-float inline DegToRad(int angle) 
+float inline DegToRad(int angle)
 {
 	return (angle)*PI / 180.0f;
 }
@@ -110,6 +110,5 @@ float inline RadToDeg(int rads)
 
 float inline RadToDeg(float rads)
 {
-	return rads*180.0f / PI;
+	return rads * 180.0f / PI;
 }
-
