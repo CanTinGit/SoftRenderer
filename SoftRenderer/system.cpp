@@ -1,4 +1,4 @@
-#include<Windows.h>
+#include <Windows.h>
 #include <tchar.h>
 #include "geometry.h"
 #include "camera.h"
@@ -6,6 +6,7 @@
 #include "model.h"
 #include <vector>
 #include "render.h"
+
 
 using namespace std;
 /////////////////////////
@@ -165,7 +166,7 @@ int main()
 		return -1;
 
 	Model *model = new Model("Resources/cube.obj");
-	model->SetRotation(0, 1, 0, -0.5);
+	model->SetRotation(0, 1, 0, 0);
 	Vector4f look_at(0, 0, 0, 1), up = { 0,1,0,1 };
 	Device my_device(screen_width, screen_height, screen_fb);
 	my_device.my_camera.SetPosition(0, 0, -2);
@@ -178,9 +179,11 @@ int main()
 	my_device.transform.Set_Perspective(fovy, aspect, 1.0f, 500.0f);
 	my_device.transform.Update();
 
+	my_device.texture.Load("Resources/cube.jpg");
+
 	my_device.Clear(0);
 	float theta = 0;
-	int op = 1;
+	int op = 3;
 	while (screen_exit == 0 && screen_keys[VK_ESCAPE] == 0)
 	{
 		Screen_Dispatch();
@@ -196,7 +199,7 @@ int main()
 		if (screen_keys[VK_SPACE])
 		{
 			op++;
-			op %= 3;
+			op %= 4;
 		}
 		Screen_update();
 		Sleep(1);

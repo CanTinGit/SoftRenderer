@@ -1,5 +1,6 @@
 #include "render.h"
 #include <ctime>
+#include <consoleapi2.h>
 
 
 int face = 0;
@@ -61,6 +62,16 @@ void Transform::Apply(Vertex &op, Vertex &re)
 	re.color = op.color;
 }
 
+void Transform::Apply(Vertex& op, Vertex& re, Vector2f uv)
+{
+	re.coordinates = transform * op.local;
+	re.worldCoordinates = world * op.local;
+	re.normal = world * op.normal;
+	re.texcoord = uv;
+	re.color = op.color;
+}
+
+
 //归一化得到屏幕坐标
 void Transform::Homogenize(Vector4f &op, Vector4f &re)
 {
@@ -70,6 +81,19 @@ void Transform::Homogenize(Vector4f &op, Vector4f &re)
 	re.z = op.z *rhw;
 	re.w = 1.0f;
 }
+
+void Transform::Homogenize(Vertex& op, Vertex& re)
+{
+	float  rhw = 1.0f / op.coordinates.w;
+	re.coordinates.x = (op.coordinates.x *rhw + 1.0f) * width *0.5f;
+	re.coordinates.y = (1.0f - op.coordinates.y * rhw) *height *0.5f;
+	re.coordinates.z = op.coordinates.z *rhw;
+	re.rhw = rhw;
+	re.texcoord.x = op.texcoord.x *re.coordinates.z;
+	re.texcoord.y = op.texcoord.y *re.coordinates.z;
+	re.coordinates.w = 1.0f;
+}
+
 
 //根据fov等参数设置透视矩阵, aspect—宽高比，near_z—近裁面到相机距离，far_z—远裁面到相机距离
 void Transform::Set_Perspective(float fovy, float aspect, float near_z, float far_z)
@@ -96,8 +120,8 @@ Vector4i Texture::Map(float tu, float tv)
 	Vector4i result;
 	result = { 0,0,0,0 };
 	if (buf.empty()) return result;
-	int u = (int)(tu*width) % width;
-	int v = (int)(tv*height) % height;
+	int u = (int)(tu*width)%width;
+	int v = (int)(tv*width)%height;
 	if (u < 0 || v < 0)
 		cout << tu << ' ' << tv << endl;
 	u = u >= 0 ? u : -u;
@@ -350,12 +374,61 @@ void Device::ProcessScanLine(ScanLineData scanline, Vector4f& pa, Vector4f& pb, 
 	for (int x = sx; x <= ex; x++)
 	{
 		float gradient = (x - sx) / (float)(ex - sx);
+		//颜色的线性插值
 		Vector4i colorRGB = scanline.leftColor + (scanline.rightColor - scanline.leftColor)*gradient;
 		UINT32 color = ConvertRGBTOUINT(colorRGB);
 		float z = INTERP(z1, z2, gradient);
 		PutPixel(x, scanline.currentY, z, color);
 	}
 }
+
+void Device::ProcessScanLineTexture(ScanLineData scanline, Vector4f& pa, Vector4f& pb, Vector4f& pc, Vector4f& pd,Texture &tex)
+{
+	float gradient_s = pa.y != pb.y ? (scanline.currentY - pa.y) / (pb.y - pa.y) : 1;
+	float gradient_e = pc.y != pd.y ? (scanline.currentY - pc.y) / (pd.y - pc.y) : 1;
+
+	int sx = INTERP(pa.x, pb.x, gradient_s);
+	int ex = INTERP(pc.x, pd.x, gradient_e);
+
+	//深度线性插值
+	float z1 = INTERP(pa.z, pb.z, gradient_s);
+	float z2 = INTERP(pc.z, pd.z, gradient_e);
+
+	//纹理坐标插值，双线性插值
+	float su = INTERP(scanline.ua, scanline.ub, gradient_s);
+	float eu = INTERP(scanline.uc, scanline.ud, gradient_e);
+	float sv = INTERP(scanline.va, scanline.vb, gradient_s);
+	float ev = INTERP(scanline.vc, scanline.vd, gradient_e);
+
+	float srhw = INTERP(scanline.rhwa, scanline.rhwb, gradient_s);
+	float erhw = INTERP(scanline.rhwc, scanline.rhwd, gradient_e);
+
+	UINT32 color;
+	for (int x = sx; x <= ex; x++)
+	{
+		float gradient = (x - sx) / (float)(ex - sx);
+		float z = INTERP(z1, z2, gradient);
+		//float rhw = INTERP(srhw, erhw, gradient);
+		//rhw = 1 / rhw;
+		//纹理映射插值
+		float u = INTERP(su, eu, gradient);
+		float v = INTERP(sv, ev, gradient);
+		//if (u>1 || v>1)
+		//{
+		//	cout << u << v;
+		//}
+		//u = u * rhw;
+		//v = v * rhw;
+		if (!tex.buf.empty()) color = ConvertRGBTOUINT(tex.Map(u, v));
+		else color = 0x00000000;
+		int colorR = (float)(u) * (int)255;
+		Vector4i colorRGB = { colorR,0,0,0 };
+		UINT tempColor = ConvertRGBTOUINT(colorRGB);
+		PutPixel(x, scanline.currentY, z, color);
+	}
+}
+
+
 
 void Device::DrawTriangleFrame(Vertex A, Vertex B, Vertex C, UINT32 color)
 {
@@ -569,6 +642,175 @@ void Device::DrawTriangleFlat(Vertex A, Vertex B, Vertex C)
 	}
 }
 
+void Device::DrawTriangleTexture(Vertex A, Vertex B, Vertex C)
+{
+	Vector4f pa = A.coordinates;
+	Vector4f pb = B.coordinates;
+	Vector4f pc = C.coordinates;
+
+	//按y值大小按从小到大顺序排列
+	if (pa.y > pb.y)
+	{
+		swap(pa, pb); swap(A, B);
+	}
+	if (pa.y > pc.y)
+	{
+		swap(pa, pc); swap(A, C);
+	}
+	if (pb.y > pc.y)
+	{
+		swap(pb, pc); swap(B, C);
+	}
+
+	ScanLineData scanline;
+
+	if (pa.y == pb.y)
+	{
+		if (pa.x < pb.x)
+		{
+			swap(pa, pb);
+			swap(A, B);
+		}
+		for (int row = (int)pa.y;row<=(int)pc.y;row++)
+		{
+			scanline.currentY = row;
+			scanline.ua = B.texcoord.x;
+			scanline.ub = C.texcoord.x;
+			scanline.uc = A.texcoord.x;
+			scanline.ud = C.texcoord.x;
+			scanline.va = B.texcoord.y;
+			scanline.vb = C.texcoord.y;
+			scanline.vc = A.texcoord.y;
+			scanline.vd = C.texcoord.y;
+			scanline.rhwa = B.rhw;
+			scanline.rhwb = C.rhw;
+			scanline.rhwc = A.rhw;
+			scanline.rhwd = C.rhw;
+			ProcessScanLineTexture(scanline, pb, pc, pa, pc, texture);
+		}
+		return;
+	}
+
+	if (pc.y == pb.y)
+	{
+		if (pc.x < pb.x)
+		{
+			swap(pc, pb);
+			swap(C, B);
+		}
+		for (int row = (int)pa.y; row <= (int)pc.y; row++)
+		{
+			scanline.currentY = row;
+			scanline.ua = A.texcoord.x;
+			scanline.ub = B.texcoord.x;
+			scanline.uc = C.texcoord.x;
+			scanline.ud = A.texcoord.x;
+			scanline.va = A.texcoord.y;
+			scanline.vb = B.texcoord.y;
+			scanline.vc = C.texcoord.y;
+			scanline.vd = A.texcoord.y;
+			scanline.rhwa = A.rhw;
+			scanline.rhwb = B.rhw;
+			scanline.rhwc = C.rhw;
+			scanline.rhwd = A.rhw;
+			ProcessScanLineTexture(scanline, pa, pb, pc, pa, texture);
+		}
+		return;
+	}
+
+	float dPaPb, dPaPc;
+	if (pb.y - pa.y > 0)
+		dPaPb = (pb.x - pa.x) / (pb.y - pa.y);
+	else
+		dPaPb = 0;
+
+	if (pc.y - pa.y > 0)
+		dPaPc = (pc.x - pa.x) / (pc.y - pa.y);
+	else
+		dPaPc = 0;
+
+	if (dPaPb > dPaPc)
+	{
+		for (int row = (int)pa.y; row <= (int)pc.y; row++)
+		{
+			scanline.currentY = row;
+			if (row < pb.y)
+			{
+				scanline.ua = A.texcoord.x;
+				scanline.ub = C.texcoord.x;
+				scanline.uc = B.texcoord.x;
+				scanline.ud = A.texcoord.x;
+				scanline.va = A.texcoord.y;
+				scanline.vb = C.texcoord.y;
+				scanline.vc = B.texcoord.y;
+				scanline.vd = A.texcoord.y;
+				scanline.rhwa = A.rhw;
+				scanline.rhwb = C.rhw;
+				scanline.rhwc = B.rhw;
+				scanline.rhwd = A.rhw;
+				ProcessScanLineTexture(scanline, pa, pc, pb, pa, texture);
+			}
+			else
+			{
+				scanline.ua = A.texcoord.x;
+				scanline.ub = C.texcoord.x;
+				scanline.uc = B.texcoord.x;
+				scanline.ud = C.texcoord.x;
+				scanline.va = A.texcoord.y;
+				scanline.vb = C.texcoord.y;
+				scanline.vc = B.texcoord.y;
+				scanline.vd = C.texcoord.y;
+				scanline.rhwa = A.rhw;
+				scanline.rhwb = C.rhw;
+				scanline.rhwc = B.rhw;
+				scanline.rhwd = C.rhw;
+				ProcessScanLineTexture(scanline, pa, pc, pb, pc, texture);
+			}
+		}
+	}
+	else
+	{
+		for (int row = (int)pa.y; row <= (int)pc.y; row++)
+		{
+			scanline.currentY = row;
+			if (row < pb.y)
+			{
+				scanline.ua = A.texcoord.x;
+				scanline.ub = B.texcoord.x;
+				scanline.uc = C.texcoord.x;
+				scanline.ud = A.texcoord.x;
+				scanline.va = A.texcoord.y;
+				scanline.vb = B.texcoord.y;
+				scanline.vc = C.texcoord.y;
+				scanline.vd = A.texcoord.y;
+				scanline.rhwa = A.rhw;
+				scanline.rhwb = B.rhw;
+				scanline.rhwc = C.rhw;
+				scanline.rhwd = A.rhw;
+				ProcessScanLineTexture(scanline, pa, pb, pc, pa, texture);
+			}
+			else
+			{
+				scanline.ua = B.texcoord.x;
+				scanline.ub = C.texcoord.x;
+				scanline.uc = A.texcoord.x;
+				scanline.ud = C.texcoord.x;
+				scanline.va = B.texcoord.y;
+				scanline.vb = C.texcoord.y;
+				scanline.vc = A.texcoord.y;
+				scanline.vd = C.texcoord.y;
+				scanline.rhwa = B.rhw;
+				scanline.rhwb = C.rhw;
+				scanline.rhwc = A.rhw;
+				scanline.rhwd = C.rhw;
+				ProcessScanLineTexture(scanline, pb, pc, pa, pc, texture);
+			}
+		}
+	}
+
+}
+
+
 void Device::Render(Model& model, int op)
 {
 	transform.Update();
@@ -589,16 +831,16 @@ void Device::Render(Model& model, int op)
 	int count_backface = 0;
 
 	//每个顶点据时间产生随机颜色
-	for (int i = 0; i < model.nverts(); i++)
-		model.vertices[i].color = RandomColor(i);
+	//for (int i = 0; i < model.nverts(); i++)
+	//	model.vertices[i].color = RandomColor(i);
 
 	for (int i = 0; i < model.nfaces(); i++)
 	{
-		transform.Apply(model.vertices[model.faces[i][0]], re2);
+		transform.Apply(model.vertices[model.faces[i][0][0]], re2,model.getUV(i,0));
 		transform.Homogenize(re2.coordinates, re2.coordinates);
-		transform.Apply(model.vertices[model.faces[i][1]], re3);
+		transform.Apply(model.vertices[model.faces[i][1][0]], re3, model.getUV(i, 1));
 		transform.Homogenize(re3.coordinates, re3.coordinates);
-		transform.Apply(model.vertices[model.faces[i][2]], re4);
+		transform.Apply(model.vertices[model.faces[i][2][0]], re4, model.getUV(i, 2));
 		transform.Homogenize(re4.coordinates, re4.coordinates);
 		face = i;
 		////DrawTriangleFrame(re2, re3, re4, color[i / 2]);
@@ -611,16 +853,7 @@ void Device::Render(Model& model, int op)
 		case 0:DrawTriangleFrame(re2, re3, re4, color[i / 2]); break;
 		case 1:DrawTriangleFlat(re2, re3, re4, color[i / 2]); break;
 		case 2:DrawTriangleFlat(re2, re3, re4); break;
+		case 3:DrawTriangleTexture(re2, re3, re4); break;
 		}
-		/*DrawTriangleFlat(re2, re3, re4, color[i / 2]);*/
-		//if (BackfaceCulling(re2,re3,re4,model.normals[i/2]))
-		//{
-		//	DrawTriangleFlat(re2, re3, re4, color[i / 2]);
-		//}
-		//else
-		//{
-		//	count_backface++;
-		//}
 	}
-	cout << count_backface<<endl;
 }

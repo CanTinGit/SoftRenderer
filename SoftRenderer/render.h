@@ -28,8 +28,10 @@ public:
 	void Init(int _width, int _height);
 	void Apply(Vector4f &op, Vector4f &re);      //对矢量做投影变换
 	void Apply(Vertex &op, Vertex &re);          //对顶点做投影变换
+	void Apply(Vertex &op, Vertex &re, Vector2f uv);
 	//void Apply(Vertex &op, Vertex &re);       //对顶点做投影变换
 	void Homogenize(Vector4f &op, Vector4f &re);
+	void Homogenize(Vertex &op, Vertex &re);
 	void Set_Perspective(float fovy, float aspect, float near_z, float far_z);
 };
 
@@ -58,6 +60,8 @@ public:
 
 	float ua, ub, uc, ud;
 	float va, vb, vc, vd;
+
+	float rhwa, rhwb, rhwc, rhwd;
 };
 
 class Device
@@ -69,6 +73,7 @@ public:
 	float **zbuffer;          //深度缓存
 	UINT32 background;        //背景颜色
 	Camera my_camera;         //相机
+	Texture texture;
 
 	Device(int w, int h, void *fb);
 	~Device();
@@ -85,11 +90,13 @@ public:
 
 	void ProcessScanLine(int curY, Vector4f &pa, Vector4f &pb, Vector4f &pc, Vector4f &pd, UINT32& color);
 	void ProcessScanLine(ScanLineData scanline, Vector4f &pa, Vector4f &pb, Vector4f &pc, Vector4f &pd);
+	void ProcessScanLineTexture(ScanLineData scanline, Vector4f &pa, Vector4f &pb, Vector4f &pc, Vector4f &pd,Texture &tex);
 
 	//扫描线法填充
 	void DrawTriangleFrame(Vertex A, Vertex B, Vertex C, UINT32 color);
 	void DrawTriangleFlat(Vertex A, Vertex B, Vertex C, UINT32 color);
 	void DrawTriangleFlat(Vertex A, Vertex B, Vertex C);
+	void DrawTriangleTexture(Vertex A, Vertex B, Vertex C);
 
 	void Render(Model &model, int op);
 };

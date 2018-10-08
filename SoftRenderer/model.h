@@ -10,7 +10,7 @@ public:
 	Vector4f position;
 	Vector4f rotation;
 	std::vector<Vertex> vertices;
-	std::vector<std::vector<int> > faces;
+	std::vector<std::vector<Vector3i> > faces;
 	std::vector<Vector4f> normals;
 	std::vector<Vector2f> uvs;
 	float max_radius;
@@ -27,4 +27,5 @@ public:
 	void UpdateWorldPosition();
 	Vector4f Position();
 	float Max_Radius();
+	Vector2f getUV(int, int);
 };

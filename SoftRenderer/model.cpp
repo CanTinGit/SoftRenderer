@@ -65,19 +65,18 @@ Model::Model(const char *filename) : vertices(), faces() {
 			normal.z = -normal.z;
 			normals.push_back(normal);
 		}
-		else if (!line.compare(0, 2, "f ")) {
-			std::vector<int> f;
+		else if (!line.compare(0, 2, "f ")) 
+		{
+			std::vector<Vector3i> f;
 			int itrash, idx, idx_vt, idx_vn;
 			iss >> trash;
-			while (iss >> idx >> trash >> idx_vt >> trash >> idx_vn)
+			Vector3i face;
+			while (iss >> face[0] >> trash >> face[1] >> trash >> face[2])
 			{
-				idx--; // in wavefront obj all indices start at 1, not zero
-				idx_vt--;
-				idx_vn--;
-				f.push_back(idx);
-				//vertices[idx].normal = normals[idx_vn];
-				vertices[idx].texcoord.x = uvs[idx_vt].x;
-				vertices[idx].texcoord.y = uvs[idx_vt].y;
+				face[0]--; // 从1开始 而非从0
+				face[1]--;
+				face[2]--;
+				f.push_back(face);
 			}
 			faces.push_back(f);
 		}
@@ -98,7 +97,9 @@ int Model::nfaces() {
 }
 
 std::vector<int> Model::face(int idx) {
-	return faces[idx];
+	std::vector<int> face;
+	for (int i = 0; i < (int)faces[idx].size(); i++) face.push_back(faces[idx][i][0]);
+	return face;
 }
 
 Vertex Model::vert(int i) {
@@ -136,4 +137,12 @@ void Model::UpdateWorldPosition()
 	{
 		vertices[i].worldCoordinates;
 	}
+}
+
+//face_idx - 面的索引数
+//nvert - 一个面里顶点索引数
+Vector2f Model::getUV(int face_idx, int nvert)
+{
+	int idx = faces[face_idx][nvert][1];
+	return uvs[idx];
 }
