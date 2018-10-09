@@ -482,7 +482,7 @@ void Device::ProcessScanLineTexture(ScanLineData scanline, Vector4f& pa, Vector4
 			Vector4i diffuseColor = colorRGB * diffuse * diffuselight.intensity;
 			Vector4i ambientColor = colorRGB + ambientLight.color * ambientLight.intensity;
 			Vector4i specularColor = speculaLight.color * specular;
-			colorRGB = diffuseColor + ambientColor;
+			colorRGB = diffuseColor + ambientColor + specularColor;
 			color = ConvertRGBTOUINT(colorRGB);
 		}
 		else color = 0x00000000;
