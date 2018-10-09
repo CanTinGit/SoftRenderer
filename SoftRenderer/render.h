@@ -51,6 +51,7 @@ class ScanLineData
 {
 public:
 	int currentY;
+	float diffuse;
 	float ndotla;
 	float ndotlb;
 	float ndotlc;
@@ -74,6 +75,7 @@ public:
 	UINT32 background;        //±³¾°ÑÕÉ«
 	Camera my_camera;         //Ïà»ú
 	Texture texture;
+	Vector4f light;
 
 	Device(int w, int h, void *fb);
 	~Device();
@@ -81,6 +83,9 @@ public:
 	void Clear(int mode);
 	bool BackfaceCulling(Vertex pa_v, Vertex pb_v, Vertex pc_v, Vector4f normal);
 	//bool BackfaceCulling(Vertex pa_v, Vertex pb_v, Vertex pc_v);
+
+	void SetLightPosition(float x, float y, float z);
+	float LightCos(Vector4f point, Vector4f normal);
 
 	void PutPixel(int x, int y, UINT32 &color);
 	void PutPixel(int x, int y, float z, UINT32 &color);

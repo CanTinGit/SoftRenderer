@@ -26,6 +26,7 @@ int Screen_Init(int width, int height, const TCHAR *title);
 int Screen_Close(void);
 void Screen_Dispatch(void);
 void Screen_update(void);
+void ShowFPS();
 
 // win32 event handler
 static LRESULT Screen_Events(HWND, UINT, WPARAM, LPARAM);
@@ -154,6 +155,28 @@ void Screen_update(void)
 	Screen_Dispatch();
 }
 
+void ShowFPS()
+{
+	static float fps = 0;
+	static int frameCount = 0;
+	static float currentTime = 0.0f;
+	static float lastTime = 0.0f;
+
+	frameCount++;
+	currentTime = timeGetTime()*0.001f;
+	if (currentTime - lastTime > 1.0f)
+	{
+		fps = (float)frameCount / (currentTime - lastTime);
+		lastTime = currentTime;
+		frameCount = 0;
+	}
+
+	char strBuffer[20];
+	HDC hdc = GetDC(screen_handle);
+	sprintf_s(strBuffer, 20, "%0.3f", fps);
+	TextOut(screen_dc, 0, 0, strBuffer, 6);
+}
+
 int main()
 {
 	//Mesh mesh(8, 12);
@@ -166,10 +189,10 @@ int main()
 		return -1;
 
 	Model *model = new Model("Resources/cube.obj");
-	model->SetRotation(0, 1, 0, 0);
+	model->SetRotation(0, 1, 0, 0.5f);
 	Vector4f look_at(0, 0, 0, 1), up = { 0,1,0,1 };
 	Device my_device(screen_width, screen_height, screen_fb);
-	my_device.my_camera.SetPosition(0, 0, -2);
+	my_device.my_camera.SetPosition(0, 1, -2);
 	my_device.my_camera.SetCamera(look_at, up);
 
 	my_device.transform.view = my_device.my_camera.view;
@@ -180,7 +203,7 @@ int main()
 	my_device.transform.Update();
 
 	my_device.texture.Load("Resources/cube.jpg");
-
+	my_device.SetLightPosition(0, 1, -2);
 	my_device.Clear(0);
 	float theta = 0;
 	int op = 3;
@@ -189,7 +212,7 @@ int main()
 		Screen_Dispatch();
 		my_device.Clear(0);
 		my_device.Render(*model, op);
-
+		//model->rotation.w += 0.01f;
 		if (screen_keys[VK_UP]) my_device.my_camera.position.x -= 0.01f;
 		if (screen_keys[VK_DOWN]) my_device.my_camera.position.x += 0.01f;
 
@@ -201,7 +224,10 @@ int main()
 			op++;
 			op %= 4;
 		}
+
+		ShowFPS();
 		Screen_update();
 		Sleep(1);
 	}
 }
+

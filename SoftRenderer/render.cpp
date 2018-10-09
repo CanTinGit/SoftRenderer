@@ -89,8 +89,8 @@ void Transform::Homogenize(Vertex& op, Vertex& re)
 	re.coordinates.y = (1.0f - op.coordinates.y * rhw) *height *0.5f;
 	re.coordinates.z = op.coordinates.z *rhw;
 	re.rhw = rhw;
-	re.texcoord.x = op.texcoord.x *re.coordinates.z;
-	re.texcoord.y = op.texcoord.y *re.coordinates.z;
+	re.texcoord.x = op.texcoord.x *rhw;
+	re.texcoord.y = op.texcoord.y *rhw;
 	re.coordinates.w = 1.0f;
 }
 
@@ -218,6 +218,28 @@ bool Device::BackfaceCulling(Vertex p0, Vertex p1, Vertex p2, Vector4f normal)
 	if (my_camera.plane_camera_cos(center_point, n) > 0) return true;
 	else return false;
 }
+
+//设置光照位置
+void Device::SetLightPosition(float x, float y, float z)
+{
+	light.x = x;
+	light.y = y;
+	light.z = z;
+}
+
+float Device::LightCos(Vector4f point, Vector4f normal)
+{
+	Vector4f light_dir;
+	light_dir = light - point;
+	light_dir.normalize();
+	normal.normalize();
+	float diffuse = normal * light_dir;
+	diffuse = diffuse < 0 ? 0 : diffuse;
+	diffuse = diffuse > 1 ? 1 : diffuse;
+	return diffuse;
+}
+
+
 
 //像素填充函数
 void Device::PutPixel(int x, int y, UINT32& color)
@@ -408,8 +430,8 @@ void Device::ProcessScanLineTexture(ScanLineData scanline, Vector4f& pa, Vector4
 	{
 		float gradient = (x - sx) / (float)(ex - sx);
 		float z = INTERP(z1, z2, gradient);
-		//float rhw = INTERP(srhw, erhw, gradient);
-		//rhw = 1 / rhw;
+		float rhw = INTERP(srhw, erhw, gradient);
+		rhw = 1 / rhw;
 		//纹理映射插值
 		float u = INTERP(su, eu, gradient);
 		float v = INTERP(sv, ev, gradient);
@@ -417,13 +439,19 @@ void Device::ProcessScanLineTexture(ScanLineData scanline, Vector4f& pa, Vector4
 		//{
 		//	cout << u << v;
 		//}
-		//u = u * rhw;
-		//v = v * rhw;
-		if (!tex.buf.empty()) color = ConvertRGBTOUINT(tex.Map(u, v));
+		u = u * rhw;
+		v = v * rhw;
+
+		if (!tex.buf.empty())
+		{
+			Vector4i colorRGB = tex.Map(u, v);
+			//colorRGB = colorRGB * scanline.diffuse;
+			color = ConvertRGBTOUINT(colorRGB);
+		}
 		else color = 0x00000000;
-		int colorR = (float)(u) * (int)255;
-		Vector4i colorRGB = { colorR,0,0,0 };
-		UINT tempColor = ConvertRGBTOUINT(colorRGB);
+		//int colorR = (float)(u) * (int)255;
+		//Vector4i colorRGB = { colorR,0,0,0 };
+		//UINT tempColor = ConvertRGBTOUINT(colorRGB);
 		PutPixel(x, scanline.currentY, z, color);
 	}
 }
@@ -664,6 +692,18 @@ void Device::DrawTriangleTexture(Vertex A, Vertex B, Vertex C)
 
 	ScanLineData scanline;
 
+	float temp = float(1) / float(3);
+	//normal = (p0.normal + p1.normal + p2.normal) * temp;
+	Vector4f edge1 = C.worldCoordinates - A.worldCoordinates;
+	Vector4f edge2 = B.worldCoordinates - A.worldCoordinates;
+	Vector4f n = edge1 ^ edge2;
+
+	//计算三顶点的中心
+	Vector4f center_point;
+	center_point = (A.worldCoordinates + B.worldCoordinates + C.worldCoordinates) * temp;
+
+	scanline.diffuse = LightCos(center_point, n);
+
 	if (pa.y == pb.y)
 	{
 		if (pa.x < pb.x)
@@ -837,12 +877,15 @@ void Device::Render(Model& model, int op)
 	for (int i = 0; i < model.nfaces(); i++)
 	{
 		transform.Apply(model.vertices[model.faces[i][0][0]], re2,model.getUV(i,0));
-		transform.Homogenize(re2.coordinates, re2.coordinates);
+		transform.Homogenize(re2, re2);
 		transform.Apply(model.vertices[model.faces[i][1][0]], re3, model.getUV(i, 1));
-		transform.Homogenize(re3.coordinates, re3.coordinates);
+		transform.Homogenize(re3, re3);
 		transform.Apply(model.vertices[model.faces[i][2][0]], re4, model.getUV(i, 2));
-		transform.Homogenize(re4.coordinates, re4.coordinates);
+		transform.Homogenize(re4, re4);
 		face = i;
+		//float temp = 1 / re4.rhw;
+		//re4.texcoord.x *= temp;
+		//re4.texcoord.y *= temp;
 		////DrawTriangleFrame(re2, re3, re4, color[i / 2]);
 		if (!BackfaceCulling(re2, re3, re4, model.normals[i / 2]))
 		{
