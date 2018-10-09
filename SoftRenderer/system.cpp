@@ -192,7 +192,7 @@ int main()
 	model->SetRotation(0, 1, 0, 0.5f);
 	Vector4f look_at(0, 0, 0, 1), up = { 0,1,0,1 };
 	Device my_device(screen_width, screen_height, screen_fb);
-	my_device.my_camera.SetPosition(0, 1, -2);
+	my_device.my_camera.SetPosition(0, 0, -2);
 	my_device.my_camera.SetCamera(look_at, up);
 
 	my_device.transform.view = my_device.my_camera.view;
@@ -203,7 +203,7 @@ int main()
 	my_device.transform.Update();
 
 	my_device.texture.Load("Resources/cube.jpg");
-	my_device.SetLightPosition(0, 1, -2);
+	my_device.SetLightPosition(0, 0, -2);
 	my_device.Clear(0);
 	float theta = 0;
 	int op = 3;

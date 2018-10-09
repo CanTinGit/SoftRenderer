@@ -122,8 +122,8 @@ Vector4i Texture::Map(float tu, float tv)
 	if (buf.empty()) return result;
 	int u = (int)(tu*width)%width;
 	int v = (int)(tv*width)%height;
-	if (u < 0 || v < 0)
-		cout << tu << ' ' << tv << endl;
+	//if (u < 0 || v < 0)
+	//	cout << tu << ' ' << tv << endl;
 	u = u >= 0 ? u : -u;
 	v = v >= 0 ? v : -v;
 
@@ -131,7 +131,6 @@ Vector4i Texture::Map(float tu, float tv)
 	result = { tex_w[2],tex_w[1],tex_w[0],0 };
 	return result;
 }
-
 
 
 ////////////////
@@ -204,6 +203,10 @@ void Device::Clear(int mode)
 //背面剔除
 bool Device::BackfaceCulling(Vertex p0, Vertex p1, Vertex p2, Vector4f normal)
 {
+	if (face == 8)
+	{
+		float a = 1;
+	}
 	////计算三角形所在面的法线
 	//Vector4f normal;
 	float temp = float(1) / float(3);
@@ -416,11 +419,15 @@ void Device::ProcessScanLineTexture(ScanLineData scanline, Vector4f& pa, Vector4
 	float z1 = INTERP(pa.z, pb.z, gradient_s);
 	float z2 = INTERP(pc.z, pd.z, gradient_e);
 
-	//纹理坐标插值，双线性插值
+	//纹理坐标插值
 	float su = INTERP(scanline.ua, scanline.ub, gradient_s);
 	float eu = INTERP(scanline.uc, scanline.ud, gradient_e);
 	float sv = INTERP(scanline.va, scanline.vb, gradient_s);
 	float ev = INTERP(scanline.vc, scanline.vd, gradient_e);
+
+	//光照强度插值
+	float sn = INTERP(scanline.ndotla, scanline.ndotlb, gradient_s);
+	float en = INTERP(scanline.ndotlc, scanline.ndotld, gradient_e);
 
 	float srhw = INTERP(scanline.rhwa, scanline.rhwb, gradient_s);
 	float erhw = INTERP(scanline.rhwc, scanline.rhwd, gradient_e);
@@ -435,6 +442,7 @@ void Device::ProcessScanLineTexture(ScanLineData scanline, Vector4f& pa, Vector4
 		//纹理映射插值
 		float u = INTERP(su, eu, gradient);
 		float v = INTERP(sv, ev, gradient);
+		float diffuse = INTERP(sn, en, gradient);
 		//if (u>1 || v>1)
 		//{
 		//	cout << u << v;
@@ -445,7 +453,7 @@ void Device::ProcessScanLineTexture(ScanLineData scanline, Vector4f& pa, Vector4
 		if (!tex.buf.empty())
 		{
 			Vector4i colorRGB = tex.Map(u, v);
-			//colorRGB = colorRGB * scanline.diffuse;
+			colorRGB = colorRGB * diffuse;
 			color = ConvertRGBTOUINT(colorRGB);
 		}
 		else color = 0x00000000;
@@ -672,6 +680,20 @@ void Device::DrawTriangleFlat(Vertex A, Vertex B, Vertex C)
 
 void Device::DrawTriangleTexture(Vertex A, Vertex B, Vertex C)
 {
+	float temp = float(1) / float(3);
+	//normal = (p0.normal + p1.normal + p2.normal) * temp;
+	Vector4f edge1 = C.worldCoordinates - A.worldCoordinates;
+	Vector4f edge2 = B.worldCoordinates - A.worldCoordinates;
+	Vector4f n = edge1 ^ edge2;
+
+	//计算三顶点的中心
+	Vector4f center_point;
+	center_point = (A.worldCoordinates + B.worldCoordinates + C.worldCoordinates) * temp;
+
+	float ndotA = LightCos(A.worldCoordinates, n);
+	float ndotB = LightCos(B.worldCoordinates, n);
+	float ndotC = LightCos(C.worldCoordinates, n);
+
 	Vector4f pa = A.coordinates;
 	Vector4f pb = B.coordinates;
 	Vector4f pc = C.coordinates;
@@ -690,19 +712,14 @@ void Device::DrawTriangleTexture(Vertex A, Vertex B, Vertex C)
 		swap(pb, pc); swap(B, C);
 	}
 
+	if (face == 8)
+	{
+		float a = 1;
+	}
+
 	ScanLineData scanline;
 
-	float temp = float(1) / float(3);
-	//normal = (p0.normal + p1.normal + p2.normal) * temp;
-	Vector4f edge1 = C.worldCoordinates - A.worldCoordinates;
-	Vector4f edge2 = B.worldCoordinates - A.worldCoordinates;
-	Vector4f n = edge1 ^ edge2;
 
-	//计算三顶点的中心
-	Vector4f center_point;
-	center_point = (A.worldCoordinates + B.worldCoordinates + C.worldCoordinates) * temp;
-
-	scanline.diffuse = LightCos(center_point, n);
 
 	if (pa.y == pb.y)
 	{
@@ -726,6 +743,10 @@ void Device::DrawTriangleTexture(Vertex A, Vertex B, Vertex C)
 			scanline.rhwb = C.rhw;
 			scanline.rhwc = A.rhw;
 			scanline.rhwd = C.rhw;
+			scanline.ndotla = ndotB;
+			scanline.ndotlb = ndotC;
+			scanline.ndotlc = ndotA;
+			scanline.ndotld = ndotC;
 			ProcessScanLineTexture(scanline, pb, pc, pa, pc, texture);
 		}
 		return;
@@ -753,6 +774,10 @@ void Device::DrawTriangleTexture(Vertex A, Vertex B, Vertex C)
 			scanline.rhwb = B.rhw;
 			scanline.rhwc = C.rhw;
 			scanline.rhwd = A.rhw;
+			scanline.ndotla = ndotA;
+			scanline.ndotlb = ndotB;
+			scanline.ndotlc = ndotC;
+			scanline.ndotld = ndotA;
 			ProcessScanLineTexture(scanline, pa, pb, pc, pa, texture);
 		}
 		return;
@@ -788,6 +813,10 @@ void Device::DrawTriangleTexture(Vertex A, Vertex B, Vertex C)
 				scanline.rhwb = C.rhw;
 				scanline.rhwc = B.rhw;
 				scanline.rhwd = A.rhw;
+				scanline.ndotla = ndotA;
+				scanline.ndotlb = ndotC;
+				scanline.ndotlc = ndotB;
+				scanline.ndotld = ndotA;
 				ProcessScanLineTexture(scanline, pa, pc, pb, pa, texture);
 			}
 			else
@@ -804,6 +833,10 @@ void Device::DrawTriangleTexture(Vertex A, Vertex B, Vertex C)
 				scanline.rhwb = C.rhw;
 				scanline.rhwc = B.rhw;
 				scanline.rhwd = C.rhw;
+				scanline.ndotla = ndotA;
+				scanline.ndotlb = ndotC;
+				scanline.ndotlc = ndotB;
+				scanline.ndotld = ndotC;
 				ProcessScanLineTexture(scanline, pa, pc, pb, pc, texture);
 			}
 		}
@@ -827,6 +860,10 @@ void Device::DrawTriangleTexture(Vertex A, Vertex B, Vertex C)
 				scanline.rhwb = B.rhw;
 				scanline.rhwc = C.rhw;
 				scanline.rhwd = A.rhw;
+				scanline.ndotla = ndotA;
+				scanline.ndotlb = ndotB;
+				scanline.ndotlc = ndotC;
+				scanline.ndotld = ndotA;
 				ProcessScanLineTexture(scanline, pa, pb, pc, pa, texture);
 			}
 			else
@@ -843,6 +880,10 @@ void Device::DrawTriangleTexture(Vertex A, Vertex B, Vertex C)
 				scanline.rhwb = C.rhw;
 				scanline.rhwc = A.rhw;
 				scanline.rhwd = C.rhw;
+				scanline.ndotla = ndotB;
+				scanline.ndotlb = ndotC;
+				scanline.ndotlc = ndotA;
+				scanline.ndotld = ndotC;
 				ProcessScanLineTexture(scanline, pb, pc, pa, pc, texture);
 			}
 		}
