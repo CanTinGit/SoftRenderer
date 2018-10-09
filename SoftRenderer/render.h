@@ -57,12 +57,31 @@ public:
 	float ndotlc;
 	float ndotld;
 
+	float speculardotla;
+	float speculardotlb;
+	float speculardotlc;
+	float speculardotld;
+
 	Vector4i leftColor, rightColor;
 
 	float ua, ub, uc, ud;
 	float va, vb, vc, vd;
 
 	float rhwa, rhwb, rhwc, rhwd;
+};
+
+class Light
+{
+public:
+	Vector4f position;
+	Vector4i color;
+	float intensity;
+
+	Light();
+	void SetPosition(float x, float y, float z);
+	void SetColor(int r, int g, int b);
+	void SetIntensity(float a);
+	float LightCos(Vector4f point, Vector4f normal);
 };
 
 class Device
@@ -75,7 +94,7 @@ public:
 	UINT32 background;        //±³¾°ÑÕÉ«
 	Camera my_camera;         //Ïà»ú
 	Texture texture;
-	Vector4f light;
+	Light diffuselight,ambientLight,speculaLight;
 
 	Device(int w, int h, void *fb);
 	~Device();
@@ -83,9 +102,6 @@ public:
 	void Clear(int mode);
 	bool BackfaceCulling(Vertex pa_v, Vertex pb_v, Vertex pc_v, Vector4f normal);
 	//bool BackfaceCulling(Vertex pa_v, Vertex pb_v, Vertex pc_v);
-
-	void SetLightPosition(float x, float y, float z);
-	float LightCos(Vector4f point, Vector4f normal);
 
 	void PutPixel(int x, int y, UINT32 &color);
 	void PutPixel(int x, int y, float z, UINT32 &color);

@@ -132,6 +132,34 @@ Vector4i Texture::Map(float tu, float tv)
 	return result;
 }
 
+Light::Light()
+{
+	position = { 0,0,0,1 };
+	color = { 1,1,1,1 };
+	intensity = 1;
+}
+
+void Light::SetPosition(float x, float y, float z)
+{
+	position.x = x;
+	position.y = y;
+	position.z = z;
+}
+
+
+void Light::SetColor(int r, int g, int b)
+{
+	color.x = r;
+	color.y = g;
+	color.z = b;
+}
+
+void Light::SetIntensity(float a)
+{
+	intensity = a;
+}
+
+
 
 ////////////////
 //渲染抽象设备//
@@ -222,18 +250,11 @@ bool Device::BackfaceCulling(Vertex p0, Vertex p1, Vertex p2, Vector4f normal)
 	else return false;
 }
 
-//设置光照位置
-void Device::SetLightPosition(float x, float y, float z)
-{
-	light.x = x;
-	light.y = y;
-	light.z = z;
-}
 
-float Device::LightCos(Vector4f point, Vector4f normal)
+float Light::LightCos(Vector4f point, Vector4f normal)
 {
 	Vector4f light_dir;
-	light_dir = light - point;
+	light_dir = position - point;
 	light_dir.normalize();
 	normal.normalize();
 	float diffuse = normal * light_dir;
@@ -429,6 +450,10 @@ void Device::ProcessScanLineTexture(ScanLineData scanline, Vector4f& pa, Vector4
 	float sn = INTERP(scanline.ndotla, scanline.ndotlb, gradient_s);
 	float en = INTERP(scanline.ndotlc, scanline.ndotld, gradient_e);
 
+	//高光插值
+	float specular_s = INTERP(scanline.speculardotla, scanline.speculardotlb, gradient_s);
+	float specular_e = INTERP(scanline.speculardotlc, scanline.speculardotld, gradient_e);
+
 	float srhw = INTERP(scanline.rhwa, scanline.rhwb, gradient_s);
 	float erhw = INTERP(scanline.rhwc, scanline.rhwd, gradient_e);
 
@@ -443,6 +468,7 @@ void Device::ProcessScanLineTexture(ScanLineData scanline, Vector4f& pa, Vector4
 		float u = INTERP(su, eu, gradient);
 		float v = INTERP(sv, ev, gradient);
 		float diffuse = INTERP(sn, en, gradient);
+		float specular = INTERP(specular_s, specular_e, gradient);
 		//if (u>1 || v>1)
 		//{
 		//	cout << u << v;
@@ -453,7 +479,10 @@ void Device::ProcessScanLineTexture(ScanLineData scanline, Vector4f& pa, Vector4
 		if (!tex.buf.empty())
 		{
 			Vector4i colorRGB = tex.Map(u, v);
-			colorRGB = colorRGB * diffuse;
+			Vector4i diffuseColor = colorRGB * diffuse * diffuselight.intensity;
+			Vector4i ambientColor = colorRGB + ambientLight.color * ambientLight.intensity;
+			Vector4i specularColor = speculaLight.color * specular;
+			colorRGB = diffuseColor + ambientColor;
 			color = ConvertRGBTOUINT(colorRGB);
 		}
 		else color = 0x00000000;
@@ -680,19 +709,37 @@ void Device::DrawTriangleFlat(Vertex A, Vertex B, Vertex C)
 
 void Device::DrawTriangleTexture(Vertex A, Vertex B, Vertex C)
 {
+	ScanLineData scanline;
+
 	float temp = float(1) / float(3);
 	//normal = (p0.normal + p1.normal + p2.normal) * temp;
 	Vector4f edge1 = C.worldCoordinates - A.worldCoordinates;
 	Vector4f edge2 = B.worldCoordinates - A.worldCoordinates;
 	Vector4f n = edge1 ^ edge2;
 
-	//计算三顶点的中心
-	Vector4f center_point;
-	center_point = (A.worldCoordinates + B.worldCoordinates + C.worldCoordinates) * temp;
+	float ndotA = diffuselight.LightCos(A.worldCoordinates, n);
+	float ndotB = diffuselight.LightCos(B.worldCoordinates, n);
+	float ndotC = diffuselight.LightCos(C.worldCoordinates, n);
 
-	float ndotA = LightCos(A.worldCoordinates, n);
-	float ndotB = LightCos(B.worldCoordinates, n);
-	float ndotC = LightCos(C.worldCoordinates, n);
+	float specularPower = 1.0f;
+
+	Vector4f lightDir =speculaLight.position - A.worldCoordinates;
+	Vector4f reflectionVector = n * 2 * ndotA - lightDir;
+	Vector4f viewDir = my_camera.position - A.worldCoordinates;
+	reflectionVector.normalize();
+	float specularA = pow(reflectionVector*viewDir, specularPower);
+
+	lightDir = speculaLight.position - B.worldCoordinates;
+	reflectionVector = n * 2 * ndotA - lightDir;
+	viewDir = my_camera.position - B.worldCoordinates;
+	reflectionVector.normalize();
+	float specularB = pow(reflectionVector*viewDir, specularPower);
+
+	lightDir = speculaLight.position - C.worldCoordinates;
+	reflectionVector = n * 2 * ndotA - lightDir;
+	viewDir = my_camera.position - C.worldCoordinates;
+	reflectionVector.normalize();
+	float specularC = pow(reflectionVector*viewDir, specularPower);
 
 	Vector4f pa = A.coordinates;
 	Vector4f pb = B.coordinates;
@@ -716,10 +763,6 @@ void Device::DrawTriangleTexture(Vertex A, Vertex B, Vertex C)
 	{
 		float a = 1;
 	}
-
-	ScanLineData scanline;
-
-
 
 	if (pa.y == pb.y)
 	{
@@ -747,6 +790,10 @@ void Device::DrawTriangleTexture(Vertex A, Vertex B, Vertex C)
 			scanline.ndotlb = ndotC;
 			scanline.ndotlc = ndotA;
 			scanline.ndotld = ndotC;
+			scanline.speculardotla = specularB;
+			scanline.speculardotlb = specularC;
+			scanline.speculardotlc = specularA;
+			scanline.speculardotld = specularC;
 			ProcessScanLineTexture(scanline, pb, pc, pa, pc, texture);
 		}
 		return;
@@ -778,6 +825,10 @@ void Device::DrawTriangleTexture(Vertex A, Vertex B, Vertex C)
 			scanline.ndotlb = ndotB;
 			scanline.ndotlc = ndotC;
 			scanline.ndotld = ndotA;
+			scanline.speculardotla = specularA;
+			scanline.speculardotlb = specularB;
+			scanline.speculardotlc = specularC;
+			scanline.speculardotld = specularA;
 			ProcessScanLineTexture(scanline, pa, pb, pc, pa, texture);
 		}
 		return;
@@ -817,6 +868,10 @@ void Device::DrawTriangleTexture(Vertex A, Vertex B, Vertex C)
 				scanline.ndotlb = ndotC;
 				scanline.ndotlc = ndotB;
 				scanline.ndotld = ndotA;
+				scanline.speculardotla = specularA;
+				scanline.speculardotlb = specularC;
+				scanline.speculardotlc = specularB;
+				scanline.speculardotld = specularA;
 				ProcessScanLineTexture(scanline, pa, pc, pb, pa, texture);
 			}
 			else
@@ -837,6 +892,10 @@ void Device::DrawTriangleTexture(Vertex A, Vertex B, Vertex C)
 				scanline.ndotlb = ndotC;
 				scanline.ndotlc = ndotB;
 				scanline.ndotld = ndotC;
+				scanline.speculardotla = specularA;
+				scanline.speculardotlb = specularC;
+				scanline.speculardotlc = specularB;
+				scanline.speculardotld = specularC;
 				ProcessScanLineTexture(scanline, pa, pc, pb, pc, texture);
 			}
 		}
@@ -864,6 +923,10 @@ void Device::DrawTriangleTexture(Vertex A, Vertex B, Vertex C)
 				scanline.ndotlb = ndotB;
 				scanline.ndotlc = ndotC;
 				scanline.ndotld = ndotA;
+				scanline.speculardotla = specularA;
+				scanline.speculardotlb = specularB;
+				scanline.speculardotlc = specularC;
+				scanline.speculardotld = specularA;
 				ProcessScanLineTexture(scanline, pa, pb, pc, pa, texture);
 			}
 			else
@@ -884,6 +947,10 @@ void Device::DrawTriangleTexture(Vertex A, Vertex B, Vertex C)
 				scanline.ndotlb = ndotC;
 				scanline.ndotlc = ndotA;
 				scanline.ndotld = ndotC;
+				scanline.speculardotla = specularB;
+				scanline.speculardotlb = specularC;
+				scanline.speculardotlc = specularA;
+				scanline.speculardotld = specularC;
 				ProcessScanLineTexture(scanline, pb, pc, pa, pc, texture);
 			}
 		}

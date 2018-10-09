@@ -203,7 +203,12 @@ int main()
 	my_device.transform.Update();
 
 	my_device.texture.Load("Resources/cube.jpg");
-	my_device.SetLightPosition(0, 0, -2);
+	my_device.diffuselight.SetPosition(0, 0, -2);
+	my_device.diffuselight.SetIntensity(0.7f);
+	my_device.ambientLight.SetColor(0, 128, 0);
+	my_device.ambientLight.SetIntensity(0.1f);
+	my_device.speculaLight.SetPosition(0, 1, -0.5f);
+	my_device.speculaLight.SetColor(55, 55, 55);
 	my_device.Clear(0);
 	float theta = 0;
 	int op = 3;
