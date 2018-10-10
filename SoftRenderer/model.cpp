@@ -85,6 +85,12 @@ Model::Model(const char *filename) : vertices(), faces() {
 	std::cerr << "# v# " << vertices.size() << " f# " << faces.size() << std::endl;
 }
 
+Model::Model()
+{
+	
+}
+
+
 Model::~Model() {
 }
 

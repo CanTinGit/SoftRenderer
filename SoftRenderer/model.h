@@ -17,6 +17,7 @@ public:
 	Vector3f dir;
 public:
 	Model(const char *filename);
+	Model();
 	~Model();
 	int nverts();
 	int nfaces();

@@ -125,8 +125,6 @@ int Screen_Close(void)
 // TODO: Click once
 static LRESULT Screen_Events(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
-	PAINTSTRUCT ps;
-	HDC hdc;
 	switch (msg)
 	{
 	case WM_CLOSE: screen_exit = 1; break;
@@ -183,17 +181,24 @@ int main()
 	//set_mesh_vertices_faces(mesh, all_verticesJson, facesJson);
 
 	//mesh.Rotation = { 0, 0, 0, 0 };
-
+	vector<Model> models;
 	const TCHAR *title = _T("TinyRender");
 	if (Screen_Init(800, 600, title))
 		return -1;
 
 	Model *model = new Model("Resources/cube.obj");
 	model->SetRotation(0, 1, 0, 0.f);
-	Vector4f look_at(0, 0, 0, 1), up = { 0,1,0,1 };
+	model->SetPosition(2.f, 1, 0);
+	models.push_back(*model);
+
+	Model *model2 = new Model("Resources/cube.obj");
+	model->SetRotation(0, 1, 0, 0.5f);
+	model->SetPosition(0, 0, 0);
+	models.push_back(*model2);
+	Vector4f look_at(0, 0, 1, 1), up = { 0,1,0,1 };
 	Device my_device(screen_width, screen_height, screen_fb);
 	my_device.my_camera.SetPosition(0, 0, -2);
-	my_device.my_camera.SetCamera(look_at, up);
+	my_device.my_camera.SetCamera(my_device.my_camera.position + look_at, up);
 
 	my_device.transform.view = my_device.my_camera.view;
 
@@ -217,13 +222,18 @@ int main()
 	{
 		Screen_Dispatch();
 		my_device.Clear(0);
-		my_device.Render(*model, op);
+		my_device.my_camera.SetCamera(my_device.my_camera.position +look_at, up);
+		my_device.transform.view = my_device.my_camera.view;
+		my_device.Render(models, op);
 		//model->rotation.w += 0.01f;
-		if (screen_keys[VK_UP]) my_device.my_camera.position.x -= 0.01f;
-		if (screen_keys[VK_DOWN]) my_device.my_camera.position.x += 0.01f;
+		if (screen_keys[VK_UP]) my_device.my_camera.position.z += 0.01f;
+		if (screen_keys[VK_DOWN]) my_device.my_camera.position.z -= 0.01f;
 
-		if (screen_keys[VK_LEFT]) model->rotation.w += 0.01f;
-		if (screen_keys[VK_RIGHT]) model->rotation.w -= 0.01f;
+		if (screen_keys[VK_LEFT]) my_device.my_camera.position.x -= 0.01f;
+		if (screen_keys[VK_RIGHT]) my_device.my_camera.position.x += 0.01f;
+
+		if (screen_keys[VK_NUMPAD4]) model->rotation.w += 0.01f;
+		if (screen_keys[VK_NUMPAD5]) model->rotation.w -= 0.01f;
 
 		if (screen_keys[VK_NUMPAD1]) my_device.specularPower += 0.1f;	//E
 		if (screen_keys[VK_NUMPAD2]) my_device.specularPower -= 0.1f;	//F

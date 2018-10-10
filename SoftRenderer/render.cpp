@@ -517,7 +517,7 @@ void Device::ProcessScanLineTexture(ScanLineData scanline, Vector4f& pa, Vector4
 		//int colorR = (float)(u) * (int)255;
 		//Vector4i colorRGB = { colorR,0,0,0 };
 		//UINT tempColor = ConvertRGBTOUINT(colorRGB);
-		PutPixel(x, scanline.currentY, z, color);
+		PutPixel(x, scanline.currentY, z*rhw, color);
 	}
 }
 
@@ -1009,9 +1009,9 @@ void Device::DrawTriangleTexture(Vertex A, Vertex B, Vertex C)
 	}
 
 }
-
-
-void Device::Render(Model& model, int op)
+Model model;
+void Device::Render(vector<Model>& models, int op)
+//void Device::Render(Model model, int op)
 {
 	transform.Update();
 
@@ -1023,40 +1023,71 @@ void Device::Render(Model& model, int op)
 	UINT32 color1 = ConvertRGBTOUINT(myColor);
 	UINT32 color2 = color[0];
 
-	transform.world = Matrix::TranslateMatrix(model.Position().x, model.Position().y, model.Position().z);
-	transform.world = Matrix::RotateMatrix(model.rotation.x, model.rotation.y, model.rotation.z, model.rotation.w);
-	transform.Update();
-	Clear(0);
+	//transform.world = Matrix::RotateMatrix(model.rotation.x, model.rotation.y, model.rotation.z, model.rotation.w);
+	//transform.world = Matrix::TranslateMatrix(model.Position().x, model.Position().y, model.Position().z,transform.world);
+
+	//transform.Update();
+	//Clear(0);
 	Vertex re2, re3, re4, re5;
 	int count_backface = 0;
 
 	//每个顶点据时间产生随机颜色
 	//for (int i = 0; i < model.nverts(); i++)
 	//	model.vertices[i].color = RandomColor(i);
-
-	for (int i = 0; i < model.nfaces(); i++)
+	//for (int i = 0; i < model.nfaces(); i++)
+	//{
+	//	transform.Apply(model.vertices[model.faces[i][0][0]], re2, model.getUV(i, 0));
+	//	transform.Homogenize(re2, re2);
+	//	transform.Apply(model.vertices[model.faces[i][1][0]], re3, model.getUV(i, 1));
+	//	transform.Homogenize(re3, re3);
+	//	transform.Apply(model.vertices[model.faces[i][2][0]], re4, model.getUV(i, 2));
+	//	transform.Homogenize(re4, re4);
+	//	face = i;
+	//	//float temp = 1 / re4.rhw;
+	//	//re4.texcoord.x *= temp;
+	//	//re4.texcoord.y *= temp;
+	//	////DrawTriangleFrame(re2, re3, re4, color[i / 2]);
+	//	if (!BackfaceCulling(re2, re3, re4, model.normals[i / 2]))
+	//	{
+	//		continue;
+	//	}
+	//	switch (op)
+	//	{
+	//	case 0:DrawTriangleFrame(re2, re3, re4, color[i / 2]); break;
+	//	case 1:DrawTriangleFlat(re2, re3, re4, color[i / 2]); break;
+	//	case 2:DrawTriangleFlat(re2, re3, re4); break;
+	//	case 3:DrawTriangleTexture(re2, re3, re4); break;
+	//	}
+	//}
+	for (int j = 0; j < models.size(); j++)
 	{
-		transform.Apply(model.vertices[model.faces[i][0][0]], re2,model.getUV(i,0));
-		transform.Homogenize(re2, re2);
-		transform.Apply(model.vertices[model.faces[i][1][0]], re3, model.getUV(i, 1));
-		transform.Homogenize(re3, re3);
-		transform.Apply(model.vertices[model.faces[i][2][0]], re4, model.getUV(i, 2));
-		transform.Homogenize(re4, re4);
-		face = i;
-		//float temp = 1 / re4.rhw;
-		//re4.texcoord.x *= temp;
-		//re4.texcoord.y *= temp;
-		////DrawTriangleFrame(re2, re3, re4, color[i / 2]);
-		if (!BackfaceCulling(re2, re3, re4, model.normals[i / 2]))
+		if (j == 1)
 		{
-			continue;
+			j = 1;
 		}
-		switch (op)
+		model = models[j];
+		transform.world = Matrix::RotateMatrix(model.rotation.x, model.rotation.y, model.rotation.z, model.rotation.w);
+		transform.world = Matrix::TranslateMatrix(model.Position().x, model.Position().y, model.Position().z,transform.world);
+		transform.Update();
+		for (int i = 0; i < model.nfaces(); i++)
 		{
-		case 0:DrawTriangleFrame(re2, re3, re4, color[i / 2]); break;
-		case 1:DrawTriangleFlat(re2, re3, re4, color[i / 2]); break;
-		case 2:DrawTriangleFlat(re2, re3, re4); break;
-		case 3:DrawTriangleTexture(re2, re3, re4); break;
+			transform.Apply(model.vertices[model.faces[i][0][0]], re2, model.getUV(i, 0));
+			transform.Homogenize(re2, re2);
+			transform.Apply(model.vertices[model.faces[i][1][0]], re3, model.getUV(i, 1));
+			transform.Homogenize(re3, re3);
+			transform.Apply(model.vertices[model.faces[i][2][0]], re4, model.getUV(i, 2));
+			transform.Homogenize(re4, re4);
+			if (!BackfaceCulling(re2, re3, re4, model.normals[i / 2]))
+			{
+				continue;
+			}
+			switch (op)
+			{
+			case 0:DrawTriangleFrame(re2, re3, re4, color[i / 2]); break;
+			case 1:DrawTriangleFlat(re2, re3, re4, color[i / 2]); break;
+			case 2:DrawTriangleFlat(re2, re3, re4); break;
+			case 3:DrawTriangleTexture(re2, re3, re4); break;
+			}
 		}
 	}
 }

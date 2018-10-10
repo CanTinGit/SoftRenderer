@@ -113,6 +113,7 @@ public:
 
 	void Clear(int mode);
 	bool BackfaceCulling(Vertex pa_v, Vertex pb_v, Vertex pc_v, Vector4f normal);
+	//int Check_CVV(Vertex)
 	//bool BackfaceCulling(Vertex pa_v, Vertex pb_v, Vertex pc_v);
 
 	void PutPixel(int x, int y, UINT32 &color);
@@ -131,5 +132,6 @@ public:
 	void DrawTriangleFlat(Vertex A, Vertex B, Vertex C);
 	void DrawTriangleTexture(Vertex A, Vertex B, Vertex C);
 
-	void Render(Model &model, int op);
+	//void Render(Model model, int op);
+	void Render(vector<Model> &models, int op);
 };
