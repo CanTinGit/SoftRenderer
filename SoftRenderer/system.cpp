@@ -189,7 +189,7 @@ int main()
 		return -1;
 
 	Model *model = new Model("Resources/cube.obj");
-	model->SetRotation(0, 1, 0, 0.5f);
+	model->SetRotation(0, 1, 0, 0.f);
 	Vector4f look_at(0, 0, 0, 1), up = { 0,1,0,1 };
 	Device my_device(screen_width, screen_height, screen_fb);
 	my_device.my_camera.SetPosition(0, 0, -2);
@@ -203,12 +203,13 @@ int main()
 	my_device.transform.Update();
 
 	my_device.texture.Load("Resources/cube.jpg");
-	my_device.diffuselight.SetPosition(0, 0, -2);
+	my_device.diffuselight.SetPosition(0, 0, -1);
 	my_device.diffuselight.SetIntensity(0.7f);
-	my_device.ambientLight.SetColor(0, 128, 0);
+	my_device.ambientLight.SetColor(0, 0, 0);
 	my_device.ambientLight.SetIntensity(0.1f);
-	my_device.speculaLight.SetPosition(0, 1, -0.5f);
-	my_device.speculaLight.SetColor(55, 55, 55);
+	my_device.speculaLight.SetPosition(-1.f, 0, -1.0f);
+	my_device.speculaLight.SetColor(255, 0, 0);
+	my_device.specularPower = 5.f;
 	my_device.Clear(0);
 	float theta = 0;
 	int op = 3;
@@ -223,6 +224,9 @@ int main()
 
 		if (screen_keys[VK_LEFT]) model->rotation.w += 0.01f;
 		if (screen_keys[VK_RIGHT]) model->rotation.w -= 0.01f;
+
+		if (screen_keys[VK_NUMPAD1]) my_device.specularPower += 0.1f;	//E
+		if (screen_keys[VK_NUMPAD2]) my_device.specularPower -= 0.1f;	//F
 
 		if (screen_keys[VK_SPACE])
 		{

@@ -11,7 +11,16 @@ typedef unsigned char BYTE;
 typedef unsigned int UINT32;
 
 #define INTERP(x1,x2,t) ((x1) + ((x2) - (x1))*(t))
-inline int CMID(int x, int min, int max) { return (x < min) ? min : ((x > max) ? max : x); }
+inline float CMID(float x, float min, float max) { return (x < min) ? min : ((x > max) ? max : x); }
+inline Vector4f Vector_Interp(Vector4f p1, Vector4f p2,float t)
+{
+	Vector4f result;
+	result.x = INTERP(p1.x, p2.x, t);
+	result.y = INTERP(p1.y, p2.y, t);
+	result.z = INTERP(p1.z, p2.z, t);
+	result.w = 1.0f;
+	return result;
+}
 
 typedef  struct { int v1, v2, v3; } Face;
 
@@ -57,10 +66,12 @@ public:
 	float ndotlc;
 	float ndotld;
 
-	float speculardotla;
-	float speculardotlb;
-	float speculardotlc;
-	float speculardotld;
+	Vector4f world_a;
+	Vector4f world_b;
+	Vector4f world_c;
+	Vector4f world_d;
+
+	Vector4f n;
 
 	Vector4i leftColor, rightColor;
 
@@ -95,6 +106,7 @@ public:
 	Camera my_camera;         //Па»ъ
 	Texture texture;
 	Light diffuselight,ambientLight,speculaLight;
+	float specularPower;
 
 	Device(int w, int h, void *fb);
 	~Device();

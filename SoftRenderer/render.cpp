@@ -451,8 +451,8 @@ void Device::ProcessScanLineTexture(ScanLineData scanline, Vector4f& pa, Vector4
 	float en = INTERP(scanline.ndotlc, scanline.ndotld, gradient_e);
 
 	//高光插值
-	float specular_s = INTERP(scanline.speculardotla, scanline.speculardotlb, gradient_s);
-	float specular_e = INTERP(scanline.speculardotlc, scanline.speculardotld, gradient_e);
+	Vector4f world_s = Vector_Interp(scanline.world_a, scanline.world_b, gradient_s);
+	Vector4f world_e = Vector_Interp(scanline.world_c, scanline.world_d, gradient_e);
 
 	float srhw = INTERP(scanline.rhwa, scanline.rhwb, gradient_s);
 	float erhw = INTERP(scanline.rhwc, scanline.rhwd, gradient_e);
@@ -460,6 +460,7 @@ void Device::ProcessScanLineTexture(ScanLineData scanline, Vector4f& pa, Vector4
 	UINT32 color;
 	for (int x = sx; x <= ex; x++)
 	{
+		if (ex == sx) continue;
 		float gradient = (x - sx) / (float)(ex - sx);
 		float z = INTERP(z1, z2, gradient);
 		float rhw = INTERP(srhw, erhw, gradient);
@@ -467,15 +468,33 @@ void Device::ProcessScanLineTexture(ScanLineData scanline, Vector4f& pa, Vector4
 		//纹理映射插值
 		float u = INTERP(su, eu, gradient);
 		float v = INTERP(sv, ev, gradient);
+
+		//漫反射
 		float diffuse = INTERP(sn, en, gradient);
-		float specular = INTERP(specular_s, specular_e, gradient);
+
+		//高光
+		Vector4f position = Vector_Interp(world_s, world_e, gradient);
+		float specularPower = this->specularPower;
+
+		Vector4f lightDir = speculaLight.position - position;
+		float ndot = lightDir.normalize() * scanline.n;
+		Vector4f reflectionVector = scanline.n * 2 * ndot - lightDir;
+		Vector4f viewDir = my_camera.position - position;
+		reflectionVector.normalize();
+		viewDir.normalize();
+		float specular = CMID(pow(reflectionVector*viewDir, specularPower), 0, 1);
+		if (isnan(specular))
+		{
+			specular = 0;
+		}
+
 		//if (u>1 || v>1)
 		//{
 		//	cout << u << v;
 		//}
 		u = u * rhw;
 		v = v * rhw;
-
+		//diffuse * rhw;
 		if (!tex.buf.empty())
 		{
 			Vector4i colorRGB = tex.Map(u, v);
@@ -483,6 +502,8 @@ void Device::ProcessScanLineTexture(ScanLineData scanline, Vector4f& pa, Vector4
 			Vector4i ambientColor = colorRGB + ambientLight.color * ambientLight.intensity;
 			Vector4i specularColor = speculaLight.color * specular;
 			colorRGB = diffuseColor + ambientColor + specularColor;
+			Vector4i colors = { 255,0,0,0 };
+			colors = colors * specular;
 			color = ConvertRGBTOUINT(colorRGB);
 		}
 		else color = 0x00000000;
@@ -716,30 +737,52 @@ void Device::DrawTriangleTexture(Vertex A, Vertex B, Vertex C)
 	Vector4f edge1 = C.worldCoordinates - A.worldCoordinates;
 	Vector4f edge2 = B.worldCoordinates - A.worldCoordinates;
 	Vector4f n = edge1 ^ edge2;
-
+	n.normalize();
+	scanline.n = n;
 	float ndotA = diffuselight.LightCos(A.worldCoordinates, n);
 	float ndotB = diffuselight.LightCos(B.worldCoordinates, n);
 	float ndotC = diffuselight.LightCos(C.worldCoordinates, n);
 
-	float specularPower = 1.0f;
+	float specularPower = this->specularPower;
 
 	Vector4f lightDir =speculaLight.position - A.worldCoordinates;
-	Vector4f reflectionVector = n * 2 * ndotA - lightDir;
+	float ndot = lightDir.normalize() * n;
+	Vector4f reflectionVector = n * 2 * ndot - lightDir;
 	Vector4f viewDir = my_camera.position - A.worldCoordinates;
 	reflectionVector.normalize();
-	float specularA = pow(reflectionVector*viewDir, specularPower);
+	viewDir.normalize();
+	float specularA = CMID(pow(reflectionVector*viewDir, specularPower),0,1);
+	if(isnan(specularA))
+	{
+		specularA = 0;
+	}
+	////float specularA = min(CMID(pow(reflectionVector*viewDir, specularPower),0,1),1);
 
-	lightDir = speculaLight.position - B.worldCoordinates;
-	reflectionVector = n * 2 * ndotA - lightDir;
-	viewDir = my_camera.position - B.worldCoordinates;
-	reflectionVector.normalize();
-	float specularB = pow(reflectionVector*viewDir, specularPower);
+	//lightDir = speculaLight.position - B.worldCoordinates;
+	//ndot = lightDir.normalize() * n;
+	//reflectionVector = n * 2 * ndot - lightDir;
+	//viewDir = my_camera.position - B.worldCoordinates;
+	//reflectionVector.normalize();
+	//viewDir.normalize();
+	//float specularB = CMID(pow(reflectionVector*viewDir, specularPower),0,1);
+	//if (isnan(specularB))
+	//{
+	//	specularB = 0;
+	//}
+	////float specularB = min(CMID(pow(reflectionVector*viewDir, specularPower),0,1),1);
 
-	lightDir = speculaLight.position - C.worldCoordinates;
-	reflectionVector = n * 2 * ndotA - lightDir;
-	viewDir = my_camera.position - C.worldCoordinates;
-	reflectionVector.normalize();
-	float specularC = pow(reflectionVector*viewDir, specularPower);
+	//lightDir = speculaLight.position - C.worldCoordinates;
+	//ndot = lightDir.normalize() * n;
+	//reflectionVector = n * 2 * ndot - lightDir;
+	//viewDir = my_camera.position - C.worldCoordinates;
+	//reflectionVector.normalize();
+	//viewDir.normalize();
+	//float specularC = CMID(pow(reflectionVector*viewDir, specularPower),0,1);
+	//if (isnan(specularC))
+	//{
+	//	specularC = 0;
+	//}
+	//float specularC = min(CMID(pow(reflectionVector*viewDir, specularPower),0,1.0f),1);
 
 	Vector4f pa = A.coordinates;
 	Vector4f pb = B.coordinates;
@@ -748,15 +791,15 @@ void Device::DrawTriangleTexture(Vertex A, Vertex B, Vertex C)
 	//按y值大小按从小到大顺序排列
 	if (pa.y > pb.y)
 	{
-		swap(pa, pb); swap(A, B);
+		swap(pa, pb); swap(A, B); swap(ndotA, ndotB); //swap(specularA, specularB);
 	}
 	if (pa.y > pc.y)
 	{
-		swap(pa, pc); swap(A, C);
+		swap(pa, pc); swap(A, C); swap(ndotA, ndotC); //swap(specularA, specularC);
 	}
 	if (pb.y > pc.y)
 	{
-		swap(pb, pc); swap(B, C);
+		swap(pb, pc); swap(B, C); swap(ndotB, ndotC);// swap(specularB, specularC);
 	}
 
 	if (face == 8)
@@ -770,6 +813,7 @@ void Device::DrawTriangleTexture(Vertex A, Vertex B, Vertex C)
 		{
 			swap(pa, pb);
 			swap(A, B);
+			swap(ndotA, ndotB);// swap(specularA, specularB);
 		}
 		for (int row = (int)pa.y;row<=(int)pc.y;row++)
 		{
@@ -790,10 +834,10 @@ void Device::DrawTriangleTexture(Vertex A, Vertex B, Vertex C)
 			scanline.ndotlb = ndotC;
 			scanline.ndotlc = ndotA;
 			scanline.ndotld = ndotC;
-			scanline.speculardotla = specularB;
-			scanline.speculardotlb = specularC;
-			scanline.speculardotlc = specularA;
-			scanline.speculardotld = specularC;
+			scanline.world_a = B.worldCoordinates;
+			scanline.world_b = C.worldCoordinates;
+			scanline.world_c = A.worldCoordinates;
+			scanline.world_d = C.worldCoordinates;
 			ProcessScanLineTexture(scanline, pb, pc, pa, pc, texture);
 		}
 		return;
@@ -805,6 +849,7 @@ void Device::DrawTriangleTexture(Vertex A, Vertex B, Vertex C)
 		{
 			swap(pc, pb);
 			swap(C, B);
+			swap(ndotC, ndotB);// swap(specularC, specularB);
 		}
 		for (int row = (int)pa.y; row <= (int)pc.y; row++)
 		{
@@ -825,10 +870,10 @@ void Device::DrawTriangleTexture(Vertex A, Vertex B, Vertex C)
 			scanline.ndotlb = ndotB;
 			scanline.ndotlc = ndotC;
 			scanline.ndotld = ndotA;
-			scanline.speculardotla = specularA;
-			scanline.speculardotlb = specularB;
-			scanline.speculardotlc = specularC;
-			scanline.speculardotld = specularA;
+			scanline.world_a = A.worldCoordinates;
+			scanline.world_b = B.worldCoordinates;
+			scanline.world_c = C.worldCoordinates;
+			scanline.world_d = A.worldCoordinates;
 			ProcessScanLineTexture(scanline, pa, pb, pc, pa, texture);
 		}
 		return;
@@ -868,10 +913,10 @@ void Device::DrawTriangleTexture(Vertex A, Vertex B, Vertex C)
 				scanline.ndotlb = ndotC;
 				scanline.ndotlc = ndotB;
 				scanline.ndotld = ndotA;
-				scanline.speculardotla = specularA;
-				scanline.speculardotlb = specularC;
-				scanline.speculardotlc = specularB;
-				scanline.speculardotld = specularA;
+				scanline.world_a = A.worldCoordinates;
+				scanline.world_b = C.worldCoordinates;
+				scanline.world_c = B.worldCoordinates;
+				scanline.world_d = A.worldCoordinates;
 				ProcessScanLineTexture(scanline, pa, pc, pb, pa, texture);
 			}
 			else
@@ -892,10 +937,10 @@ void Device::DrawTriangleTexture(Vertex A, Vertex B, Vertex C)
 				scanline.ndotlb = ndotC;
 				scanline.ndotlc = ndotB;
 				scanline.ndotld = ndotC;
-				scanline.speculardotla = specularA;
-				scanline.speculardotlb = specularC;
-				scanline.speculardotlc = specularB;
-				scanline.speculardotld = specularC;
+				scanline.world_a = A.worldCoordinates;
+				scanline.world_b = C.worldCoordinates;
+				scanline.world_c = B.worldCoordinates;
+				scanline.world_d = C.worldCoordinates;
 				ProcessScanLineTexture(scanline, pa, pc, pb, pc, texture);
 			}
 		}
@@ -923,10 +968,10 @@ void Device::DrawTriangleTexture(Vertex A, Vertex B, Vertex C)
 				scanline.ndotlb = ndotB;
 				scanline.ndotlc = ndotC;
 				scanline.ndotld = ndotA;
-				scanline.speculardotla = specularA;
-				scanline.speculardotlb = specularB;
-				scanline.speculardotlc = specularC;
-				scanline.speculardotld = specularA;
+				scanline.world_a = A.worldCoordinates;
+				scanline.world_b = B.worldCoordinates;
+				scanline.world_c = C.worldCoordinates;
+				scanline.world_d = A.worldCoordinates;
 				ProcessScanLineTexture(scanline, pa, pb, pc, pa, texture);
 			}
 			else
@@ -947,10 +992,10 @@ void Device::DrawTriangleTexture(Vertex A, Vertex B, Vertex C)
 				scanline.ndotlb = ndotC;
 				scanline.ndotlc = ndotA;
 				scanline.ndotld = ndotC;
-				scanline.speculardotla = specularB;
-				scanline.speculardotlb = specularC;
-				scanline.speculardotlc = specularA;
-				scanline.speculardotld = specularC;
+				scanline.world_a = B.worldCoordinates;
+				scanline.world_b = C.worldCoordinates;
+				scanline.world_c = A.worldCoordinates;
+				scanline.world_d = C.worldCoordinates;
 				ProcessScanLineTexture(scanline, pb, pc, pa, pc, texture);
 			}
 		}
