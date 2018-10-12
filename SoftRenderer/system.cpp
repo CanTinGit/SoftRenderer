@@ -7,7 +7,6 @@
 #include <vector>
 #include "render.h"
 
-
 using namespace std;
 /////////////////////////
 //´´½¨windows´°¿Ú////////
@@ -188,33 +187,44 @@ int main()
 
 	Model *model = new Model("Resources/cube.obj");
 	model->SetRotation(0, 1, 0, 0.f);
-	model->SetPosition(2.f, 1, 0);
+	model->SetPosition(1, -1, 0);
 	models.push_back(*model);
 
 	Model *model2 = new Model("Resources/cube.obj");
 	model->SetRotation(0, 1, 0, 0.5f);
 	model->SetPosition(0, 0, 0);
 	models.push_back(*model2);
-	Vector4f look_at(0, 0, 1, 1), up = { 0,1,0,1 };
+	Vector4f look_at(0, 0, 0, 1), up = { 0,1,0,1 };
 	Device my_device(screen_width, screen_height, screen_fb);
-	my_device.my_camera.SetPosition(0, 0, -2);
-	my_device.my_camera.SetCamera(my_device.my_camera.position + look_at, up);
 
-	my_device.transform.view = my_device.my_camera.view;
-
-	float aspect = float(800) / ((float)600);
-	float fovy = PI * 0.5f;
-	my_device.transform.Set_Perspective(fovy, aspect, 1.0f, 500.0f);
-	my_device.transform.Update();
-
-	my_device.texture.Load("Resources/cube.jpg");
-	my_device.diffuselight.SetPosition(0, 0, -1);
+	my_device.diffuselight.SetPosition(0, 0, -2);
 	my_device.diffuselight.SetIntensity(0.7f);
 	my_device.ambientLight.SetColor(0, 0, 0);
 	my_device.ambientLight.SetIntensity(0.1f);
 	my_device.speculaLight.SetPosition(-1.f, 0, -1.0f);
 	my_device.speculaLight.SetColor(255, 0, 0);
 	my_device.specularPower = 5.f;
+
+	my_device.my_camera.SetPosition(my_device.diffuselight.position.x, my_device.diffuselight.position.y, my_device.diffuselight.position.z);
+	my_device.my_camera.SetCamera(look_at, up);
+	my_device.lightTransform.view = my_device.my_camera.view;
+
+	my_device.lightTransform.Set_Ortho(-5,5,-5,5,1, 100.0f);
+
+	look_at = { 0,0,0,1 };
+	my_device.my_camera.SetPosition(1, 0, -1);
+	my_device.my_camera.SetCamera(look_at, up);
+
+	my_device.transform.view = my_device.my_camera.view;
+
+	float aspect = float(800) / ((float)600);
+	float fovy = PI * 0.5f;
+	my_device.lightTransform.Set_Perspective(fovy, aspect, 1.0f, 500.0f);
+	my_device.transform.Set_Perspective(fovy, aspect, 1.0f, 500.0f);
+	my_device.transform.Update();
+
+	my_device.texture.Load("Resources/cube.jpg");
+
 	my_device.Clear(0);
 	float theta = 0;
 	int op = 3;
@@ -222,8 +232,8 @@ int main()
 	{
 		Screen_Dispatch();
 		my_device.Clear(0);
-		my_device.my_camera.SetCamera(my_device.my_camera.position +look_at, up);
-		my_device.transform.view = my_device.my_camera.view;
+		//my_device.my_camera.SetCamera(my_device.my_camera.position + look_at, up);
+		//my_device.transform.view = my_device.my_camera.view;
 		my_device.Render(models, op);
 		//model->rotation.w += 0.01f;
 		if (screen_keys[VK_UP]) my_device.my_camera.position.z += 0.01f;
@@ -249,4 +259,3 @@ int main()
 		Sleep(1);
 	}
 }
-

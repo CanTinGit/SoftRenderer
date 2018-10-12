@@ -65,7 +65,7 @@ Model::Model(const char *filename) : vertices(), faces() {
 			normal.z = -normal.z;
 			normals.push_back(normal);
 		}
-		else if (!line.compare(0, 2, "f ")) 
+		else if (!line.compare(0, 2, "f "))
 		{
 			std::vector<Vector3i> f;
 			int itrash, idx, idx_vt, idx_vn;
@@ -87,9 +87,7 @@ Model::Model(const char *filename) : vertices(), faces() {
 
 Model::Model()
 {
-	
 }
-
 
 Model::~Model() {
 }

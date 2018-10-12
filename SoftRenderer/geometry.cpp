@@ -174,7 +174,6 @@ Matrix Matrix::ZeroMatrix(int dimension) {
 }
 
 Matrix Matrix::TranslateMatrix(float x, float y, float z, Matrix &E) {
-	
 	E[3][0] = x;
 	E[3][1] = y;
 	E[3][2] = z;

@@ -12,7 +12,7 @@ typedef unsigned int UINT32;
 
 #define INTERP(x1,x2,t) ((x1) + ((x2) - (x1))*(t))
 inline float CMID(float x, float min, float max) { return (x < min) ? min : ((x > max) ? max : x); }
-inline Vector4f Vector_Interp(Vector4f p1, Vector4f p2,float t)
+inline Vector4f Vector_Interp(Vector4f p1, Vector4f p2, float t)
 {
 	Vector4f result;
 	result.x = INTERP(p1.x, p2.x, t);
@@ -30,10 +30,13 @@ public:
 	Matrix world; //世界坐标变换矩阵
 	Matrix view;  //相机坐标变换矩阵
 	Matrix projection; //投影坐标变换
-	Matrix transform; //transform = projection * view * world;
+	Matrix ortho;      //正交投影变换 - 用于shadow map
+	Matrix transform; //transform = world*view*projection;
+	Matrix worldToProjection; // worldToProjection = view *projection
 	float width, height;  //屏幕大小
 
 	void Update();
+	void LightUpdate();
 	void Init(int _width, int _height);
 	void Apply(Vector4f &op, Vector4f &re);      //对矢量做投影变换
 	void Apply(Vertex &op, Vertex &re);          //对顶点做投影变换
@@ -42,6 +45,7 @@ public:
 	void Homogenize(Vector4f &op, Vector4f &re);
 	void Homogenize(Vertex &op, Vertex &re);
 	void Set_Perspective(float fovy, float aspect, float near_z, float far_z);
+	void Set_Ortho(float left, float right, float bottom, float top, float near_z, float far_z);
 };
 
 class Texture
@@ -51,6 +55,7 @@ public:
 	int width;
 	int height;
 	string name;
+	void Init(int w, int h);
 	void Load(const char *filename);
 	Vector4i Map(float tu, float tv);
 };
@@ -98,21 +103,23 @@ public:
 class Device
 {
 public:
-	Transform transform;      //变换矩阵
+	Transform transform, lightTransform;      //变换矩阵
 	int width, height;
 	UINT32 **framebuffer;     //像素缓存
 	float **zbuffer;          //深度缓存
 	UINT32 background;        //背景颜色
 	Camera my_camera;         //相机
-	Texture texture;
-	Light diffuselight,ambientLight,speculaLight;
+	Texture texture, shadowTexture;
+	Light diffuselight, ambientLight, speculaLight;
 	float specularPower;
-
+	std::vector<std::vector<float>> shadowDepthbuffer;
 	Device(int w, int h, void *fb);
 	~Device();
 
 	void Clear(int mode);
+	void ClearShadowBuf();
 	bool BackfaceCulling(Vertex pa_v, Vertex pb_v, Vertex pc_v, Vector4f normal);
+	Vector2f PointInLightSpace(Vector4f worldCoord);
 	//int Check_CVV(Vertex)
 	//bool BackfaceCulling(Vertex pa_v, Vertex pb_v, Vertex pc_v);
 
@@ -124,14 +131,17 @@ public:
 
 	void ProcessScanLine(int curY, Vector4f &pa, Vector4f &pb, Vector4f &pc, Vector4f &pd, UINT32& color);
 	void ProcessScanLine(ScanLineData scanline, Vector4f &pa, Vector4f &pb, Vector4f &pc, Vector4f &pd);
-	void ProcessScanLineTexture(ScanLineData scanline, Vector4f &pa, Vector4f &pb, Vector4f &pc, Vector4f &pd,Texture &tex);
+	void ProcessScanLineTexture(ScanLineData scanline, Vector4f &pa, Vector4f &pb, Vector4f &pc, Vector4f &pd, Texture &tex);
+	void ProcessScanLineToTexture(ScanLineData scanline, Vector4f &pa, Vector4f &pb, Vector4f &pc, Vector4f &pd, Texture &tex);
 
 	//扫描线法填充
 	void DrawTriangleFrame(Vertex A, Vertex B, Vertex C, UINT32 color);
 	void DrawTriangleFlat(Vertex A, Vertex B, Vertex C, UINT32 color);
 	void DrawTriangleFlat(Vertex A, Vertex B, Vertex C);
 	void DrawTriangleTexture(Vertex A, Vertex B, Vertex C);
+	void DrawTriangleToTexture(Vertex A, Vertex B, Vertex C);
 
 	//void Render(Model model, int op);
+	void RenderToShadowTexture(vector<Model> &models);
 	void Render(vector<Model> &models, int op);
 };

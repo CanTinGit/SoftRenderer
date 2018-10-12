@@ -160,7 +160,7 @@ public:
 	Matrix Inverse();
 
 	static Matrix ZeroMatrix(int dimension);
-	static Matrix TranslateMatrix(float x, float y, float z,Matrix &E);
+	static Matrix TranslateMatrix(float x, float y, float z, Matrix &E);
 	static Matrix ScaleMatrix(float x, float y, float z);
 	static Matrix RotateMatrix(float x, float y, float z, float theta);
 };
