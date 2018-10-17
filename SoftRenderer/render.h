@@ -1,9 +1,7 @@
 #pragma once
 #include "geometry.h"
-#include "mymath.h"
+#include "model.h"
 #include "camera.h"
-#include <string>
-#include <opencv2/opencv.hpp>
 
 using namespace std;
 
@@ -46,23 +44,11 @@ public:
 	//void Apply(Vertex &op, Vertex &re);       //对顶点做投影变换
 	void Homogenize(Vector4f &op, Vector4f &re);
 	void Homogenize(Vertex &op, Vertex &re);
-	void ShadowHomogenize(Vertex &op, Vertex &re,int w, int h);
+	void ShadowHomogenize(Vertex &op, Vertex &re, int w, int h);
 	void Set_Perspective(float fovy, float aspect, float near_z, float far_z);
 	void Set_Ortho(float w, float h, float near_z, float far_z);
 
-	void ScreenToWorld(Vertex &re,float rhw);
-};
-
-class Texture
-{
-public:
-	cv::Mat buf;
-	int width;
-	int height;
-	string name;
-	void Init(int w, int h);
-	void Load(const char *filename);
-	Vector4i Map(float tu, float tv);
+	void ScreenToWorld(Vertex &re, float rhw);
 };
 
 //扫描线相关属性，便于插值
@@ -71,10 +57,6 @@ class ScanLineData
 public:
 	int currentY;
 	float diffuse;
-	float ndotla;
-	float ndotlb;
-	float ndotlc;
-	float ndotld;
 
 	Vector4f world_a;
 	Vector4f world_b;
@@ -97,12 +79,14 @@ public:
 	Vector4f position;
 	Vector4i color;
 	float intensity;
+	Vector4f lightDir;
 
 	Light();
 	void SetPosition(float x, float y, float z);
 	void SetColor(int r, int g, int b);
 	void SetIntensity(float a);
-	float LightCos(Vector4f point, Vector4f normal);
+	float DiffuseLightCos(Vector4f normal);
+	void SetDiffuseLightDir(float x, float y, float z);
 };
 
 class Device
@@ -115,11 +99,10 @@ public:
 	float **zbuffer;          //深度缓存
 	UINT32 background;        //背景颜色
 	Camera my_camera;         //相机
-	Texture texture, shadowTexture;
 	Light diffuselight, ambientLight, speculaLight;
 	float specularPower;
 	std::vector<std::vector<float>> shadowDepthbuffer;
-	Device(int w, int h, void *fb,int sw, int sh);
+	Device(int w, int h, void *fb, int sw, int sh);
 	~Device();
 
 	void Clear(int mode);
@@ -127,7 +110,6 @@ public:
 	bool BackfaceCulling(Vertex pa_v, Vertex pb_v, Vertex pc_v, Vector4f normal);
 	Vector3f PointInLightSpace(Vector4f worldCoord);
 	//int Check_CVV(Vertex)
-	//bool BackfaceCulling(Vertex pa_v, Vertex pb_v, Vertex pc_v);
 
 	void PutPixel(int x, int y, UINT32 &color);
 	void PutPixel(int x, int y, float z, UINT32 &color);
@@ -138,16 +120,15 @@ public:
 	void ProcessScanLine(int curY, Vector4f &pa, Vector4f &pb, Vector4f &pc, Vector4f &pd, UINT32& color);
 	void ProcessScanLine(ScanLineData scanline, Vector4f &pa, Vector4f &pb, Vector4f &pc, Vector4f &pd);
 	void ProcessScanLineTexture(ScanLineData scanline, Vector4f &pa, Vector4f &pb, Vector4f &pc, Vector4f &pd, Texture &tex);
-	void ProcessScanLineToTexture(ScanLineData scanline, Vector4f &pa, Vector4f &pb, Vector4f &pc, Vector4f &pd, Texture &tex);
+	void ProcessScanLineToTexture(ScanLineData scanline, Vector4f &pa, Vector4f &pb, Vector4f &pc, Vector4f &pd);
 
 	//扫描线法填充
 	void DrawTriangleFrame(Vertex A, Vertex B, Vertex C, UINT32 color);
 	void DrawTriangleFlat(Vertex A, Vertex B, Vertex C, UINT32 color);
 	void DrawTriangleFlat(Vertex A, Vertex B, Vertex C);
-	void DrawTriangleTexture(Vertex A, Vertex B, Vertex C);
+	void DrawTriangleTexture(Vertex A, Vertex B, Vertex C,Texture texture);
 	void DrawTriangleToTexture(Vertex A, Vertex B, Vertex C);
 
-	//void Render(Model model, int op);
 	void RenderToShadowTexture(vector<Model> models);
 	void Render(vector<Model> models, int op);
 };

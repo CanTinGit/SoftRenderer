@@ -189,11 +189,13 @@ int main()
 	static float delta = 0;
 	model->SetRotation(0, 1, 0, 0.5f);
 	model->SetPosition(0, 0, 0);
+	model->texture.Load("Resources/cube.jpg");
 	models.push_back(*model);
 
 	Model *model2 = new Model("Resources/cube.obj");
 	model2->SetRotation(0, 1, 0, 0.0f);
 	model2->SetPosition(-1, -2, 1);
+	model2->texture.Load("Resources/cube.jpg");
 	models.push_back(*model2);
 	Matrix m = Matrix::ScaleMatrix(5, 0.1f, 5);
 	for (int i = 0; i < 8; i++)
@@ -202,10 +204,10 @@ int main()
 	}
 
 	Vector4f look_at(0, 0, 0, 1), up = { 0,1,0,1 };
-	Device my_device(screen_width, screen_height, screen_fb,800,600);
+	Device my_device(screen_width, screen_height, screen_fb, 800, 600);
 
-	my_device.diffuselight.SetPosition(1, 1, -1);
-	my_device.diffuselight.SetIntensity(3.0f);
+	my_device.diffuselight.SetDiffuseLightDir(1, 1, -1);
+	my_device.diffuselight.SetIntensity(1.0f);
 	my_device.ambientLight.SetColor(0, 0, 0);
 	my_device.ambientLight.SetIntensity(0.05f);
 	my_device.speculaLight.SetPosition(-1.f, 0, -1.0f);
@@ -216,7 +218,7 @@ int main()
 	my_device.my_camera.SetCamera(look_at, up);
 	my_device.lightTransform.view = my_device.my_camera.view;
 
-	my_device.lightTransform.Set_Ortho(8,6,1, 500.0f);
+	my_device.lightTransform.Set_Ortho(8, 6, 1, 500.0f);
 
 	look_at = { 0,0,0,1 };
 	my_device.my_camera.SetPosition(2, 2, -2);
@@ -228,8 +230,6 @@ int main()
 	float fovy = PI * 0.5f;
 	my_device.transform.Set_Perspective(fovy, aspect, 1.0f, 500.0f);
 	my_device.transform.Update();
-
-	my_device.texture.Load("Resources/cube.jpg");
 
 	my_device.Clear(0);
 	float theta = 0;

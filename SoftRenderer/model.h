@@ -4,6 +4,7 @@
 #pragma once
 #include <vector>
 #include "geometry.h"
+#include "texture.h"
 
 class Model {
 public:
@@ -15,6 +16,7 @@ public:
 	std::vector<Vector2f> uvs;
 	float max_radius;
 	Vector3f dir;
+	Texture texture;
 public:
 	Model(const char *filename);
 	Model();

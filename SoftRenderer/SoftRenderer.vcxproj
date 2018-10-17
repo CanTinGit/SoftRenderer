@@ -125,7 +125,7 @@
     <ClInclude Include="model.h" />
     <ClInclude Include="mymath.h" />
     <ClInclude Include="render.h" />
-    <ClInclude Include="tgaimage.h" />
+    <ClInclude Include="texture.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="camera.cpp" />
@@ -135,7 +135,7 @@
     <ClCompile Include="refer.cpp" />
     <ClCompile Include="render.cpp" />
     <ClCompile Include="system.cpp" />
-    <ClCompile Include="tgaimage.cpp" />
+    <ClCompile Include="texture.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

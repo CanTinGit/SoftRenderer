@@ -48,7 +48,6 @@ void Transform::LightUpdate()
 	worldToProjection = view * ortho;
 }
 
-
 //初始化
 void Transform::Init(int _width, int _height)
 {
@@ -104,13 +103,12 @@ void Transform::Homogenize(Vertex& op, Vertex& re)
 	re.coordinates.w = 1.0f;
 }
 
-void Transform::ShadowHomogenize(Vertex& op, Vertex& re,int w, int h)
+void Transform::ShadowHomogenize(Vertex& op, Vertex& re, int w, int h)
 {
 	re.coordinates.x = (op.coordinates.x + 1.0f) * w *0.5f;
 	re.coordinates.y = (1.0f - op.coordinates.y) *h *0.5f;
 	re.coordinates.z = op.coordinates.z;
 }
-
 
 //根据fov等参数设置透视矩阵, aspect—宽高比，near_z—近裁面到相机距离，far_z—远裁面到相机距离
 void Transform::Set_Perspective(float fovy, float aspect, float near_z, float far_z)
@@ -134,9 +132,9 @@ void Transform::Set_Ortho(float w, float h, float near_z, float far_z)
 	ortho[3][2] = near_z / (near_z - far_z);
 }
 
-void Transform::ScreenToWorld(Vertex& re,float rhw)
+void Transform::ScreenToWorld(Vertex& re, float rhw)
 {
-	re.coordinates.x = ((re.coordinates.x*2.f / width) - 1.0f)/rhw;
+	re.coordinates.x = ((re.coordinates.x*2.f / width) - 1.0f) / rhw;
 	re.coordinates.y = (1 - (re.coordinates.y*2.f / height)) / rhw;
 	re.coordinates.z = re.coordinates.z / rhw;
 	re.coordinates.w = 1 / rhw;
@@ -144,48 +142,6 @@ void Transform::ScreenToWorld(Vertex& re,float rhw)
 	re.worldCoordinates = world * re.local;
 }
 
-
-//////////////////////
-////纹理类函数////////
-//////////////////////
-void Texture::Init(int w, int h)
-{
-	width = w;
-	height = h;
-	buf = cv::Mat(w, h, CV_32S);
-}
-
-void Texture::Load(const char* filename)
-{
-	buf = cv::imread(filename);
-	width = buf.size().width;
-	height = buf.size().height;
-	if (buf.empty()) cout << "Load Texture Error" << endl;
-}
-
-Vector4i Texture::Map(float tu, float tv)
-{
-	Vector4i result;
-	result.x = 0;
-	result.y = 0;
-	result.z = 0;
-	result.w = 0;
-	if (buf.empty()) return result;
-	int u = (int)(tu*width) % width;
-	int v = (int)(tv*width) % height;
-	//if (u < 0 || v < 0)
-	//	cout << tu << ' ' << tv << endl;
-	u = u >= 0 ? u : -u;
-	v = v >= 0 ? v : -v;
-
-	cv::Vec3b tex_w = buf.at<cv::Vec3b>(v, u);
-	result.x = tex_w[2];
-	result.y = tex_w[1];
-	result.z = tex_w[0];
-	result.w = 0;
-	//result = { tex_w[2],tex_w[1],tex_w[0],0 };
-	return result;
-}
 Light::Light()
 {
 	position = { 0,0,0,1 };
@@ -212,10 +168,10 @@ void Light::SetIntensity(float a)
 	intensity = a;
 }
 
-float Light::LightCos(Vector4f point, Vector4f normal)
+float Light::DiffuseLightCos(Vector4f normal)
 {
 	Vector4f light_dir;
-	light_dir = position;
+	light_dir = lightDir;
 	light_dir.normalize();
 	normal.normalize();
 	float diffuse = normal * light_dir;
@@ -224,12 +180,19 @@ float Light::LightCos(Vector4f point, Vector4f normal)
 	return diffuse;
 }
 
+void Light::SetDiffuseLightDir(float x, float y, float z)
+{
+	lightDir.x = x;
+	lightDir.y = y;
+	lightDir.z = z;
+}
+
 ////////////////
 //渲染抽象设备//
 ////////////////
 
 //初始化设备
-Device::Device(int w, int h, void*fb,int sw, int sh)
+Device::Device(int w, int h, void*fb, int sw, int sh)
 {
 	width = w;
 	height = h;
@@ -237,7 +200,6 @@ Device::Device(int w, int h, void*fb,int sw, int sh)
 	shadowHeight = sh;
 	transform.Init(width, height);
 	lightTransform.Init(sw, sh);
-	shadowTexture.buf = cv::Mat(h, w, CV_8UC1);
 	int need = sizeof(void*)*(height * 2 + 1024) + width * height * 8;
 	char *ptr = (char*)malloc(need + 64);
 	char *framebuf, *zbuf;
@@ -334,13 +296,11 @@ Vector3f Device::PointInLightSpace(Vector4f worldCoord)
 	Vector3f result;
 	Vector4f temp;
 	temp = lightTransform.worldToProjection * worldCoord;
-	result.x = (temp.x  + 1.0f) * shadowWidth *0.5f;
+	result.x = (temp.x + 1.0f) * shadowWidth *0.5f;
 	result.y = (1.0f - temp.y) *shadowHeight *0.5f;
 	result.z = temp.z;
 	return result;
 }
-
-
 
 //像素填充函数
 void Device::PutPixel(int x, int y, UINT32& color)
@@ -504,11 +464,7 @@ void Device::ProcessScanLine(ScanLineData scanline, Vector4f& pa, Vector4f& pb, 
 		PutPixel(x, scanline.currentY, z, color);
 	}
 }
-float offset_=0;
-float offset_min = 1;
-float maxX=-3;
-Vector4f maxPosition;
-int max_X_lightX, max_X_lightY;
+
 void Device::ProcessScanLineTexture(ScanLineData scanline, Vector4f& pa, Vector4f& pb, Vector4f& pc, Vector4f& pd, Texture &tex)
 {
 	float gradient_s = pa.y != pb.y ? (scanline.currentY - pa.y) / (pb.y - pa.y) : 1;
@@ -527,9 +483,9 @@ void Device::ProcessScanLineTexture(ScanLineData scanline, Vector4f& pa, Vector4
 	float sv = INTERP(scanline.va, scanline.vb, gradient_s);
 	float ev = INTERP(scanline.vc, scanline.vd, gradient_e);
 
-	//光照强度插值
-	float sn = INTERP(scanline.ndotla, scanline.ndotlb, gradient_s);
-	float en = INTERP(scanline.ndotlc, scanline.ndotld, gradient_e);
+	////光照强度插值    高氏着色
+	//float sn = INTERP(scanline.ndotla, scanline.ndotlb, gradient_s);
+	//float en = INTERP(scanline.ndotlc, scanline.ndotld, gradient_e);
 
 	//高光插值
 	Vector4f world_s = Vector_Interp(scanline.world_a, scanline.world_b, gradient_s);
@@ -537,7 +493,7 @@ void Device::ProcessScanLineTexture(ScanLineData scanline, Vector4f& pa, Vector4
 
 	float srhw = INTERP(scanline.rhwa, scanline.rhwb, gradient_s);
 	float erhw = INTERP(scanline.rhwc, scanline.rhwd, gradient_e);
-
+	int y = scanline.currentY;
 	UINT32 color;
 	for (int x = sx; x <= ex; x++)
 	{
@@ -564,16 +520,16 @@ void Device::ProcessScanLineTexture(ScanLineData scanline, Vector4f& pa, Vector4
 		float v = INTERP(sv, ev, gradient);
 
 		//漫反射
-		float diffuse = INTERP(sn, en, gradient);
+		float diffuse = scanline.diffuse;
 
 		//高光
-		Vector4f position = Vector_Interp(world_s, world_e, gradient);
+		//Vector4f position = Vector_Interp(world_s, world_e, gradient);
 		float specularPower = this->specularPower;
 
-		Vector4f lightDir = speculaLight.position - position;
+		Vector4f lightDir = speculaLight.position - re.worldCoordinates;
 		float ndot = lightDir.normalize() * scanline.n;
 		Vector4f reflectionVector = scanline.n * 2 * ndot - lightDir;
-		Vector4f viewDir = my_camera.position - position;
+		Vector4f viewDir = my_camera.position - re.worldCoordinates;
 		reflectionVector.normalize();
 		viewDir.normalize();
 		float specular = CMIDF(pow(reflectionVector*viewDir, specularPower), 0, 1);
@@ -585,58 +541,50 @@ void Device::ProcessScanLineTexture(ScanLineData scanline, Vector4f& pa, Vector4
 		u = u * rhw;
 		v = v * rhw;
 
-		//z = (z + 1) / 2;
+		z = (z + 1) / 2;
 		z = z * rhw;
 		Vector3f pixelInlight = PointInLightSpace(re.worldCoordinates);
 		int lightX = pixelInlight.x;
 		int lightY = pixelInlight.y;
-		float zInlight = pixelInlight.z-0.0001f;
-
+		float zInlight = pixelInlight.z - 0.0001f;
+		Vector4i shadow = { 255,255,255,1 };
+		Vector4i colorRGB;
 		//Vector4i colors = { 255,0,0,0 };
 		if (!tex.buf.empty())
 		{
-			Vector4i shadow = { 255,255,255,1 };
-			int y = scanline.currentY;
-			Vector4i colorRGB = tex.Map(u, v);
-			Vector4i diffuseColor = colorRGB * diffuse * diffuselight.intensity;
-			if (lightX < shadowWidth && lightY<shadowHeight && lightX >= 0 && lightY>=0)
-			{
-				float m = pixelInlight.z-shadowDepthbuffer[lightY][lightX] ;
-
-				//if (m > offset_ && modelNum == 0)
-				//{
-				//	offset_ = m;
-				//	cout << offset_ << endl;
-				//}
-				//if (m>0&&m < offset_min && modelNum == 1)
-				//{
-				//	offset_min = m;
-				//	cout << offset_min << endl;
-				//}
-				if (zInlight > shadowDepthbuffer[lightY][lightX])
-				{
-					diffuseColor = diffuseColor * 0.01f;
-					if (position.x > maxX)
-					{
-						maxX = position.z;
-						maxPosition = position;
-						max_X_lightX = lightX;
-						max_X_lightY = lightY;
-					}
-				}
-				//colors = shadow * shadowDepthbuffer[lightY][lightX];
-			}		
-			Vector4i ambientColor = colorRGB + ambientLight.color * ambientLight.intensity;
-			Vector4i specularColor = speculaLight.color * specular;
-			colorRGB = diffuseColor + ambientColor;// + specularColor;
-			color = ConvertRGBTOUINT(colorRGB);
+			colorRGB = tex.Map(u, v);	
 		}
-		else color = 0x00000000;
+		else colorRGB = shadow;
+		Vector4i diffuseColor = colorRGB * diffuse * diffuselight.intensity;
+		Vector4i ambientColor = colorRGB + ambientLight.color * ambientLight.intensity;
+		if (lightX < shadowWidth && lightY < shadowHeight && lightX >= 0 && lightY >= 0)
+		{
+			float m = pixelInlight.z - shadowDepthbuffer[lightY][lightX];
+
+			//if (m > offset_ && modelNum == 0)
+			//{
+			//	offset_ = m;
+			//	cout << offset_ << endl;
+			//}
+			//if (m>0&&m < offset_min && modelNum == 1)
+			//{
+			//	offset_min = m;
+			//	cout << offset_min << endl;
+			//}
+			if (zInlight > shadowDepthbuffer[lightY][lightX])
+			{
+				diffuseColor = diffuseColor * 0.01f;
+			}
+			//colors = shadow * shadowDepthbuffer[lightY][lightX];
+		}
+		Vector4i specularColor = speculaLight.color * specular;
+		colorRGB = diffuseColor + ambientColor;// +specularColor;
+		color = ConvertRGBTOUINT(colorRGB);
 		PutPixel(x, scanline.currentY, z, color);
 	}
 }
 
-void Device::ProcessScanLineToTexture(ScanLineData scanline, Vector4f& pa, Vector4f& pb, Vector4f& pc, Vector4f& pd, Texture &tex)
+void Device::ProcessScanLineToTexture(ScanLineData scanline, Vector4f& pa, Vector4f& pb, Vector4f& pc, Vector4f& pd)
 {
 	float gradient_s = pa.y != pb.y ? (scanline.currentY - pa.y) / (pb.y - pa.y) : 1;
 	float gradient_e = pc.y != pd.y ? (scanline.currentY - pc.y) / (pd.y - pc.y) : 1;
@@ -662,7 +610,7 @@ void Device::ProcessScanLineToTexture(ScanLineData scanline, Vector4f& pa, Vecto
 		{
 			float m = 1;
 		}
-		
+
 		if (y == 400 && x == 100)
 		{
 			float m = 1;
@@ -900,7 +848,7 @@ void Device::DrawTriangleFlat(Vertex A, Vertex B, Vertex C)
 	}
 }
 
-void Device::DrawTriangleTexture(Vertex A, Vertex B, Vertex C)
+void Device::DrawTriangleTexture(Vertex A, Vertex B, Vertex C,Texture texture)
 {
 	if (face == 3)
 	{
@@ -916,9 +864,7 @@ void Device::DrawTriangleTexture(Vertex A, Vertex B, Vertex C)
 	Vector4f n = edge1 ^ edge2;
 	n.normalize();
 	scanline.n = n;
-	float ndotA = diffuselight.LightCos(A.worldCoordinates, n);
-	float ndotB = diffuselight.LightCos(B.worldCoordinates, n);
-	float ndotC = diffuselight.LightCos(C.worldCoordinates, n);
+	scanline.diffuse = diffuselight.DiffuseLightCos(n);
 
 	Vector4f pa = A.coordinates;
 	Vector4f pb = B.coordinates;
@@ -927,15 +873,15 @@ void Device::DrawTriangleTexture(Vertex A, Vertex B, Vertex C)
 	//按y值大小按从小到大顺序排列
 	if (pa.y > pb.y)
 	{
-		swap(pa, pb); swap(A, B); swap(ndotA, ndotB); //swap(specularA, specularB);
+		swap(pa, pb); swap(A, B);  //swap(specularA, specularB);
 	}
 	if (pa.y > pc.y)
 	{
-		swap(pa, pc); swap(A, C); swap(ndotA, ndotC); //swap(specularA, specularC);
+		swap(pa, pc); swap(A, C); //swap(specularA, specularC);
 	}
 	if (pb.y > pc.y)
 	{
-		swap(pb, pc); swap(B, C); swap(ndotB, ndotC);// swap(specularB, specularC);
+		swap(pb, pc); swap(B, C); // swap(specularB, specularC);
 	}
 
 	if (face == 8)
@@ -948,8 +894,7 @@ void Device::DrawTriangleTexture(Vertex A, Vertex B, Vertex C)
 		if (pa.x < pb.x)
 		{
 			swap(pa, pb);
-			swap(A, B);
-			swap(ndotA, ndotB);// swap(specularA, specularB);
+			swap(A, B);// swap(specularA, specularB);
 		}
 		for (int row = (int)pa.y; row <= (int)pc.y; row++)
 		{
@@ -966,10 +911,6 @@ void Device::DrawTriangleTexture(Vertex A, Vertex B, Vertex C)
 			scanline.rhwb = C.rhw;
 			scanline.rhwc = A.rhw;
 			scanline.rhwd = C.rhw;
-			scanline.ndotla = ndotB;
-			scanline.ndotlb = ndotC;
-			scanline.ndotlc = ndotA;
-			scanline.ndotld = ndotC;
 			scanline.world_a = B.worldCoordinates;
 			scanline.world_b = C.worldCoordinates;
 			scanline.world_c = A.worldCoordinates;
@@ -985,7 +926,7 @@ void Device::DrawTriangleTexture(Vertex A, Vertex B, Vertex C)
 		{
 			swap(pc, pb);
 			swap(C, B);
-			swap(ndotC, ndotB);// swap(specularC, specularB);
+			// swap(specularC, specularB);
 		}
 		for (int row = (int)pa.y; row <= (int)pc.y; row++)
 		{
@@ -1002,10 +943,6 @@ void Device::DrawTriangleTexture(Vertex A, Vertex B, Vertex C)
 			scanline.rhwb = B.rhw;
 			scanline.rhwc = C.rhw;
 			scanline.rhwd = A.rhw;
-			scanline.ndotla = ndotA;
-			scanline.ndotlb = ndotB;
-			scanline.ndotlc = ndotC;
-			scanline.ndotld = ndotA;
 			scanline.world_a = A.worldCoordinates;
 			scanline.world_b = B.worldCoordinates;
 			scanline.world_c = C.worldCoordinates;
@@ -1045,10 +982,6 @@ void Device::DrawTriangleTexture(Vertex A, Vertex B, Vertex C)
 				scanline.rhwb = C.rhw;
 				scanline.rhwc = B.rhw;
 				scanline.rhwd = A.rhw;
-				scanline.ndotla = ndotA;
-				scanline.ndotlb = ndotC;
-				scanline.ndotlc = ndotB;
-				scanline.ndotld = ndotA;
 				scanline.world_a = A.worldCoordinates;
 				scanline.world_b = C.worldCoordinates;
 				scanline.world_c = B.worldCoordinates;
@@ -1069,10 +1002,6 @@ void Device::DrawTriangleTexture(Vertex A, Vertex B, Vertex C)
 				scanline.rhwb = C.rhw;
 				scanline.rhwc = B.rhw;
 				scanline.rhwd = C.rhw;
-				scanline.ndotla = ndotA;
-				scanline.ndotlb = ndotC;
-				scanline.ndotlc = ndotB;
-				scanline.ndotld = ndotC;
 				scanline.world_a = A.worldCoordinates;
 				scanline.world_b = C.worldCoordinates;
 				scanline.world_c = B.worldCoordinates;
@@ -1100,10 +1029,6 @@ void Device::DrawTriangleTexture(Vertex A, Vertex B, Vertex C)
 				scanline.rhwb = B.rhw;
 				scanline.rhwc = C.rhw;
 				scanline.rhwd = A.rhw;
-				scanline.ndotla = ndotA;
-				scanline.ndotlb = ndotB;
-				scanline.ndotlc = ndotC;
-				scanline.ndotld = ndotA;
 				scanline.world_a = A.worldCoordinates;
 				scanline.world_b = B.worldCoordinates;
 				scanline.world_c = C.worldCoordinates;
@@ -1124,10 +1049,6 @@ void Device::DrawTriangleTexture(Vertex A, Vertex B, Vertex C)
 				scanline.rhwb = C.rhw;
 				scanline.rhwc = A.rhw;
 				scanline.rhwd = C.rhw;
-				scanline.ndotla = ndotB;
-				scanline.ndotlb = ndotC;
-				scanline.ndotlc = ndotA;
-				scanline.ndotld = ndotC;
 				scanline.world_a = B.worldCoordinates;
 				scanline.world_b = C.worldCoordinates;
 				scanline.world_c = A.worldCoordinates;
@@ -1170,7 +1091,7 @@ void Device::DrawTriangleToTexture(Vertex A, Vertex B, Vertex C)
 		for (int row = (int)pa.y; row <= (int)pc.y; row++)
 		{
 			scanline.currentY = row;
-			ProcessScanLineToTexture(scanline, pb, pc, pa, pc, shadowTexture);
+			ProcessScanLineToTexture(scanline, pb, pc, pa, pc);
 		}
 		return;
 	}
@@ -1185,7 +1106,7 @@ void Device::DrawTriangleToTexture(Vertex A, Vertex B, Vertex C)
 		for (int row = (int)pa.y; row <= (int)pc.y; row++)
 		{
 			scanline.currentY = row;
-			ProcessScanLineToTexture(scanline, pa, pb, pc, pa, shadowTexture);
+			ProcessScanLineToTexture(scanline, pa, pb, pc, pa);
 		}
 		return;
 	}
@@ -1208,11 +1129,11 @@ void Device::DrawTriangleToTexture(Vertex A, Vertex B, Vertex C)
 			scanline.currentY = row;
 			if (row < pb.y)
 			{
-				ProcessScanLineToTexture(scanline, pa, pc, pb, pa, shadowTexture);
+				ProcessScanLineToTexture(scanline, pa, pc, pb, pa);
 			}
 			else
 			{
-				ProcessScanLineToTexture(scanline, pa, pc, pb, pc, shadowTexture);
+				ProcessScanLineToTexture(scanline, pa, pc, pb, pc);
 			}
 		}
 	}
@@ -1223,11 +1144,11 @@ void Device::DrawTriangleToTexture(Vertex A, Vertex B, Vertex C)
 			scanline.currentY = row;
 			if (row < pb.y)
 			{
-				ProcessScanLineToTexture(scanline, pa, pb, pc, pa, shadowTexture);
+				ProcessScanLineToTexture(scanline, pa, pb, pc, pa);
 			}
 			else
 			{
-				ProcessScanLineToTexture(scanline, pb, pc, pa, pc, shadowTexture);
+				ProcessScanLineToTexture(scanline, pb, pc, pa, pc);
 			}
 		}
 	}
@@ -1249,7 +1170,7 @@ void Device::RenderToShadowTexture(vector<Model> models)
 		for (int i = 0; i < model.nfaces(); i++)
 		{
 			lightTransform.Apply(model.vertices[model.faces[i][0][0]], re2, model.getUV(i, 0));
-			lightTransform.ShadowHomogenize(re2, re2,shadowWidth,shadowHeight);
+			lightTransform.ShadowHomogenize(re2, re2, shadowWidth, shadowHeight);
 			lightTransform.Apply(model.vertices[model.faces[i][1][0]], re3, model.getUV(i, 1));
 			lightTransform.ShadowHomogenize(re3, re3, shadowWidth, shadowHeight);
 			lightTransform.Apply(model.vertices[model.faces[i][2][0]], re4, model.getUV(i, 2));
@@ -1302,13 +1223,11 @@ void Device::Render(vector<Model> models, int op)
 			face = i;
 			switch (op)
 			{
-			//case 0:DrawTriangleFrame(re2, re3, re4, color[i / 2]); break;
-			//case 1:DrawTriangleFlat(re2, re3, re4, color[i / 2]); break;
+				//case 0:DrawTriangleFrame(re2, re3, re4, color[i / 2]); break;
+				//case 1:DrawTriangleFlat(re2, re3, re4, color[i / 2]); break;
 			case 2:DrawTriangleFlat(re2, re3, re4); break;
-			case 3:DrawTriangleTexture(re2, re3, re4); break;
+			case 3:DrawTriangleTexture(re2, re3, re4,model.texture); break;
 			}
 		}
 	}
-	cout << maxX << endl;
-	maxX = -3;
 }
