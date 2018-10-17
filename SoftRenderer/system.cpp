@@ -186,40 +186,46 @@ int main()
 		return -1;
 
 	Model *model = new Model("Resources/cube.obj");
-	model->SetRotation(0, 1, 0, 0.f);
-	model->SetPosition(1, -1, 0);
+	static float delta = 0;
+	model->SetRotation(0, 1, 0, 0.5f);
+	model->SetPosition(0, 0, 0);
 	models.push_back(*model);
 
 	Model *model2 = new Model("Resources/cube.obj");
-	model->SetRotation(0, 1, 0, 0.5f);
-	model->SetPosition(0, 0, 0);
+	model2->SetRotation(0, 1, 0, 0.0f);
+	model2->SetPosition(-1, -2, 1);
 	models.push_back(*model2);
-	Vector4f look_at(0, 0, 0, 1), up = { 0,1,0,1 };
-	Device my_device(screen_width, screen_height, screen_fb);
+	Matrix m = Matrix::ScaleMatrix(5, 0.1f, 5);
+	for (int i = 0; i < 8; i++)
+	{
+		models[1].vertices[i].local = m * models[1].vertices[i].local;
+	}
 
-	my_device.diffuselight.SetPosition(0, 0, -2);
-	my_device.diffuselight.SetIntensity(0.7f);
+	Vector4f look_at(0, 0, 0, 1), up = { 0,1,0,1 };
+	Device my_device(screen_width, screen_height, screen_fb,800,600);
+
+	my_device.diffuselight.SetPosition(1, 1, -1);
+	my_device.diffuselight.SetIntensity(3.0f);
 	my_device.ambientLight.SetColor(0, 0, 0);
-	my_device.ambientLight.SetIntensity(0.1f);
+	my_device.ambientLight.SetIntensity(0.05f);
 	my_device.speculaLight.SetPosition(-1.f, 0, -1.0f);
 	my_device.speculaLight.SetColor(255, 0, 0);
 	my_device.specularPower = 5.f;
 
-	my_device.my_camera.SetPosition(my_device.diffuselight.position.x, my_device.diffuselight.position.y, my_device.diffuselight.position.z);
+	my_device.my_camera.SetPosition(100, 100, -100);
 	my_device.my_camera.SetCamera(look_at, up);
 	my_device.lightTransform.view = my_device.my_camera.view;
 
-	my_device.lightTransform.Set_Ortho(-5,5,-5,5,1, 100.0f);
+	my_device.lightTransform.Set_Ortho(8,6,1, 500.0f);
 
 	look_at = { 0,0,0,1 };
-	my_device.my_camera.SetPosition(1, 0, -1);
+	my_device.my_camera.SetPosition(2, 2, -2);
 	my_device.my_camera.SetCamera(look_at, up);
 
 	my_device.transform.view = my_device.my_camera.view;
 
 	float aspect = float(800) / ((float)600);
 	float fovy = PI * 0.5f;
-	my_device.lightTransform.Set_Perspective(fovy, aspect, 1.0f, 500.0f);
 	my_device.transform.Set_Perspective(fovy, aspect, 1.0f, 500.0f);
 	my_device.transform.Update();
 
@@ -232,8 +238,8 @@ int main()
 	{
 		Screen_Dispatch();
 		my_device.Clear(0);
-		//my_device.my_camera.SetCamera(my_device.my_camera.position + look_at, up);
-		//my_device.transform.view = my_device.my_camera.view;
+		my_device.my_camera.SetCamera(look_at, up);
+		my_device.transform.view = my_device.my_camera.view;
 		my_device.Render(models, op);
 		//model->rotation.w += 0.01f;
 		if (screen_keys[VK_UP]) my_device.my_camera.position.z += 0.01f;
@@ -241,6 +247,11 @@ int main()
 
 		if (screen_keys[VK_LEFT]) my_device.my_camera.position.x -= 0.01f;
 		if (screen_keys[VK_RIGHT]) my_device.my_camera.position.x += 0.01f;
+
+		if (screen_keys[VK_PRIOR]) {
+			models[0].rotation.w -= 0.01f; cout << models[0].rotation.w << endl;
+		}
+		if (screen_keys[VK_NEXT])  models[0].rotation.w += 0.01f;
 
 		if (screen_keys[VK_NUMPAD4]) model->rotation.w += 0.01f;
 		if (screen_keys[VK_NUMPAD5]) model->rotation.w -= 0.01f;

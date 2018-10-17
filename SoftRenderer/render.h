@@ -11,7 +11,8 @@ typedef unsigned char BYTE;
 typedef unsigned int UINT32;
 
 #define INTERP(x1,x2,t) ((x1) + ((x2) - (x1))*(t))
-inline float CMID(float x, float min, float max) { return (x < min) ? min : ((x > max) ? max : x); }
+inline int CMID(int x, int min, int max) { return (x < min) ? min : ((x > max) ? max : x); }
+inline float CMIDF(float x, float min, float max) { return (x < min) ? min : ((x > max) ? max : x); }
 inline Vector4f Vector_Interp(Vector4f p1, Vector4f p2, float t)
 {
 	Vector4f result;
@@ -32,6 +33,7 @@ public:
 	Matrix projection; //投影坐标变换
 	Matrix ortho;      //正交投影变换 - 用于shadow map
 	Matrix transform; //transform = world*view*projection;
+	Matrix inverTransform;
 	Matrix worldToProjection; // worldToProjection = view *projection
 	float width, height;  //屏幕大小
 
@@ -44,8 +46,11 @@ public:
 	//void Apply(Vertex &op, Vertex &re);       //对顶点做投影变换
 	void Homogenize(Vector4f &op, Vector4f &re);
 	void Homogenize(Vertex &op, Vertex &re);
+	void ShadowHomogenize(Vertex &op, Vertex &re,int w, int h);
 	void Set_Perspective(float fovy, float aspect, float near_z, float far_z);
-	void Set_Ortho(float left, float right, float bottom, float top, float near_z, float far_z);
+	void Set_Ortho(float w, float h, float near_z, float far_z);
+
+	void ScreenToWorld(Vertex &re,float rhw);
 };
 
 class Texture
@@ -105,6 +110,7 @@ class Device
 public:
 	Transform transform, lightTransform;      //变换矩阵
 	int width, height;
+	int shadowWidth, shadowHeight;
 	UINT32 **framebuffer;     //像素缓存
 	float **zbuffer;          //深度缓存
 	UINT32 background;        //背景颜色
@@ -113,13 +119,13 @@ public:
 	Light diffuselight, ambientLight, speculaLight;
 	float specularPower;
 	std::vector<std::vector<float>> shadowDepthbuffer;
-	Device(int w, int h, void *fb);
+	Device(int w, int h, void *fb,int sw, int sh);
 	~Device();
 
 	void Clear(int mode);
 	void ClearShadowBuf();
 	bool BackfaceCulling(Vertex pa_v, Vertex pb_v, Vertex pc_v, Vector4f normal);
-	Vector2f PointInLightSpace(Vector4f worldCoord);
+	Vector3f PointInLightSpace(Vector4f worldCoord);
 	//int Check_CVV(Vertex)
 	//bool BackfaceCulling(Vertex pa_v, Vertex pb_v, Vertex pc_v);
 
@@ -142,6 +148,6 @@ public:
 	void DrawTriangleToTexture(Vertex A, Vertex B, Vertex C);
 
 	//void Render(Model model, int op);
-	void RenderToShadowTexture(vector<Model> &models);
-	void Render(vector<Model> &models, int op);
+	void RenderToShadowTexture(vector<Model> models);
+	void Render(vector<Model> models, int op);
 };

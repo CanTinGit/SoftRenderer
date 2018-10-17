@@ -59,26 +59,6 @@ void Camera::SetCamera(Vector4f camera_lookat, Vector4f camera_up)
 	view.m[1][3] = 0;
 	view.m[2][3] = 0;
 	view.m[3][3] = 1;
-
-	//view.m[0][0] = u.x;
-	//view.m[0][1] = u.y;
-	//view.m[0][2] = u.z;
-	//view.m[0][3] = -(position*u);
-
-	//view.m[1][0] = v.x;
-	//view.m[1][1] = v.y;
-	//view.m[1][2] = v.z;
-	//view.m[1][3] = -(position*v);
-
-	//view.m[2][0] = n.x;
-	//view.m[2][1] = n.y;
-	//view.m[2][2] = n.z;
-	//view.m[2][3] = -(position*n);
-
-	//view.m[3][0] = 0;
-	//view.m[3][1] = 0;
-	//view.m[3][2] = 0;
-	//view.m[3][3] = 1;
 }
 
 float Camera::plane_camera_cos(Vector4f center, Vector4f normal)
