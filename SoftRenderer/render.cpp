@@ -132,6 +132,19 @@ void Transform::Set_Ortho(float w, float h, float near_z, float far_z)
 	ortho[3][2] = near_z / (near_z - far_z);
 }
 
+void Transform::Set_OrthoOffCenter(float l, float r, float b, float t, float zn, float zf)
+{
+	ortho = Matrix::ZeroMatrix(4);
+	ortho[0][0] = float(2) / r-l;
+	ortho[1][1] = float(2) / t-b;
+	ortho[2][2] = float(1) / (zf - zn);
+	ortho[3][3] = 1;
+	ortho[3][0] = (l + r) / (l - r);
+	ortho[3][1] = (t + b) / (t - b);
+	ortho[3][2] = zn / (zn - zf);
+}
+
+
 void Transform::ScreenToWorld(Vertex& re, float rhw)
 {
 	re.coordinates.x = ((re.coordinates.x*2.f / width) - 1.0f) / rhw;
@@ -301,6 +314,134 @@ Vector3f Device::PointInLightSpace(Vector4f worldCoord)
 	result.z = temp.z;
 	return result;
 }
+float tempMin, tempMax;
+void Device::SetupShadowCamera(vector<Model> models)
+{
+	Vector4f up = { 0,1,0,1 };
+	float max_x = -65535.f, min_x= 65535.f, max_y = -65535.f, min_y = 65535.f, max_z = -65535.f, min_z = 65535.f;
+	Vector4f position;
+	for (int i = 0; i< models.size();i++)
+	{
+		Model model= models[i];
+		lightTransform.world = Matrix::RotateMatrix(model.rotation.x, model.rotation.y, model.rotation.z, model.rotation.w);
+		lightTransform.world = Matrix::TranslateMatrix(model.Position().x, model.Position().y, model.Position().z, lightTransform.world);
+		for (int j = 0; j<model.vertices.size();j++)
+		{
+			position = lightTransform.world*model.vertices[j].local;
+			if (position.x > max_x)
+			{
+				max_x = position.x;
+			}
+			if (position.x < min_x)
+			{
+				min_x = position.x;
+			}
+			if (position.y > max_y)
+			{
+				max_y = position.y;
+			}
+			if (position.y < min_y)
+			{
+				min_y = position.y;
+			}
+			if (position.z > max_z)
+			{
+				max_z = position.z;
+			}
+			if (position.z < min_z)
+			{
+				min_z = position.z;
+			}
+		}
+	}//(max_z + min_z)
+	position.x = 0;
+	position.y = 0;
+	position.z = 0;
+
+	Vector4f distance = diffuselight.lightDir * 10;
+	shadowCamera.SetPosition(distance.x, distance.y, distance.z);
+	shadowCamera.SetCamera(position, up);
+	lightTransform.view = shadowCamera.view;
+	Matrix m;//= lightTransform.world * lightTransform.view;
+	max_x = -65535.f, min_x = 65535.f, max_y = -65535.f, min_y = 65535.f, max_z = -65535.f, min_z = 65535.f;
+	for (int i = 0; i < models.size(); i++)
+	{
+		Model model = models[i];
+		lightTransform.world = Matrix::RotateMatrix(model.rotation.x, model.rotation.y, model.rotation.z, model.rotation.w);
+		lightTransform.world = Matrix::TranslateMatrix(model.Position().x, model.Position().y, model.Position().z, lightTransform.world);
+		m = lightTransform.world * lightTransform.view;
+		for (int j = 0; j < model.vertices.size(); j++)
+		{
+			position = m*model.vertices[j].local;
+			if (position.x > max_x)
+			{
+				max_x = position.x;
+			}
+			if (position.x < min_x)
+			{
+				min_x = position.x;
+			}
+			if (position.y > max_y)
+			{
+				max_y = position.y;
+			}
+			if (position.y < min_y)
+			{
+				min_y = position.y;
+			}
+			if (position.z > max_z)
+			{
+				max_z = position.z;
+			}
+			if (position.z < min_z)
+			{
+				min_z = position.z;
+			}
+		}
+	}
+
+	position.x = (max_x + min_x) / float(2);
+	position.y = (max_y + min_y) / float(2);
+	position.z = (max_z + min_z) / float(2);
+	//position.x = 0;
+	//position.y = 0;
+	//position.z = 0;
+	Vector4f lookat{ 0,0,0,1 };
+	if (firstTimeSetUpShadowCamera)
+	{
+		m = lightTransform.view.Inverse();
+	}
+	position = m * position;
+
+	shadowCamera.SetPosition(position.x + distance.x, position.y + distance.y, position.z + distance.z);
+	shadowCamera.SetCamera(position, up);
+	lightTransform.view = shadowCamera.view;
+
+	if (firstTimeSetUpShadowCamera)
+	{
+		max_shadowWidth = max_x - min_x;
+		max_shadowHeight = max_y - min_y;
+		firstTimeSetUpShadowCamera = false;
+	}
+	else
+	{
+		if (max_x-min_x > max_shadowWidth)
+		{
+			max_shadowWidth = max_x - min_x;
+		}
+		if (max_y - min_y> max_shadowHeight)
+		{
+			max_shadowHeight = max_y - min_y;
+		}
+	}
+	float x = (float)4 / (float)3;
+	lightTransform.Set_Ortho(max_shadowWidth,max_shadowHeight , min_z, max_z);
+	//lightTransform.Set_OrthoOffCenter(min_x, max_x, min_y, max_y, min_z, max_z);
+	cout << min_z << " " << max_z << endl;
+	tempMin = min_z;
+	tempMax = max_z;
+}
+
 
 //ÏñËØÌî³äº¯Êý
 void Device::PutPixel(int x, int y, UINT32& color)
@@ -546,8 +687,8 @@ void Device::ProcessScanLineTexture(ScanLineData scanline, Vector4f& pa, Vector4
 		Vector3f pixelInlight = PointInLightSpace(re.worldCoordinates);
 		int lightX = pixelInlight.x;
 		int lightY = pixelInlight.y;
-		float zInlight = pixelInlight.z - 0.0001f;
-		Vector4i shadow = { 255,255,255,1 };
+		float zInlight = pixelInlight.z - 0.01f;
+		Vector4i shadow = { 100,100,100,1 };
 		Vector4i colorRGB;
 		//Vector4i colors = { 255,0,0,0 };
 		if (!tex.buf.empty())
@@ -606,27 +747,12 @@ void Device::ProcessScanLineToTexture(ScanLineData scanline, Vector4f& pa, Vecto
 		float gradient = (x - sx) / (float)(ex - sx);
 		float z = INTERP(z1, z2, gradient);
 
-		if (y == 300 && x == 100)
-		{
-			float m = 1;
-		}
-
-		if (y == 400 && x == 100)
-		{
-			float m = 1;
-		}
-
-		if (y == 500 && x == 100)
-		{
-			float m = 1;
-		}
-		if (y == 598 && x == 100)
-		{
-			float m = 1;
-		}
-
 		colors = shadow * z;
 		color = ConvertRGBTOUINT(colors);
+		if (y>=shadowHeight-5)
+		{
+			float m = 1;
+		}
 		if (((UINT32)x) < (UINT32)shadowWidth && ((UINT32)y) < (UINT32)shadowHeight)
 		{
 			if (z >= shadowDepthbuffer[y][x]) continue;
@@ -1157,6 +1283,7 @@ void Device::DrawTriangleToTexture(Vertex A, Vertex B, Vertex C)
 void Device::RenderToShadowTexture(vector<Model> models)
 {
 	Vertex re2, re3, re4;
+	//SetupShadowCamera(models);
 	for (int j = 0; j < models.size(); j++)
 	{
 		if (j == 1)

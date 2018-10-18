@@ -188,14 +188,14 @@ int main()
 	Model *model = new Model("Resources/cube.obj");
 	static float delta = 0;
 	model->SetRotation(0, 1, 0, 0.5f);
-	model->SetPosition(0, 0, 0);
+	model->SetPosition(0, -1, 0);
 	model->texture.Load("Resources/cube.jpg");
 	models.push_back(*model);
 
 	Model *model2 = new Model("Resources/cube.obj");
 	model2->SetRotation(0, 1, 0, 0.0f);
-	model2->SetPosition(-1, -2, 1);
-	model2->texture.Load("Resources/cube.jpg");
+	model2->SetPosition(0, -2, 0);
+	//model2->texture.Load("Resources/cube.jpg");
 	models.push_back(*model2);
 	Matrix m = Matrix::ScaleMatrix(5, 0.1f, 5);
 	for (int i = 0; i < 8; i++)
@@ -214,13 +214,13 @@ int main()
 	my_device.speculaLight.SetColor(255, 0, 0);
 	my_device.specularPower = 5.f;
 
-	my_device.my_camera.SetPosition(100, 100, -100);
-	my_device.my_camera.SetCamera(look_at, up);
-	my_device.lightTransform.view = my_device.my_camera.view;
+	//my_device.my_camera.SetPosition(100, 100, -100);
+	//my_device.my_camera.SetCamera(look_at, up);
+	//my_device.lightTransform.view = my_device.my_camera.view;
 
-	my_device.lightTransform.Set_Ortho(8, 6, 1, 500.0f);
+	//my_device.lightTransform.Set_Ortho(8, 6, 1, 500.0f);
+	my_device.SetupShadowCamera(models);
 
-	look_at = { 0,0,0,1 };
 	my_device.my_camera.SetPosition(2, 2, -2);
 	my_device.my_camera.SetCamera(look_at, up);
 

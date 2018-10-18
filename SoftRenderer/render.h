@@ -47,6 +47,7 @@ public:
 	void ShadowHomogenize(Vertex &op, Vertex &re, int w, int h);
 	void Set_Perspective(float fovy, float aspect, float near_z, float far_z);
 	void Set_Ortho(float w, float h, float near_z, float far_z);
+	void Set_OrthoOffCenter(float l, float r, float b, float t, float zn, float zf);
 
 	void ScreenToWorld(Vertex &re, float rhw);
 };
@@ -98,9 +99,11 @@ public:
 	UINT32 **framebuffer;     //像素缓存
 	float **zbuffer;          //深度缓存
 	UINT32 background;        //背景颜色
-	Camera my_camera;         //相机
+	Camera my_camera,shadowCamera;         //相机
 	Light diffuselight, ambientLight, speculaLight;
 	float specularPower;
+	float max_shadowWidth, max_shadowHeight;
+	bool firstTimeSetUpShadowCamera = true;
 	std::vector<std::vector<float>> shadowDepthbuffer;
 	Device(int w, int h, void *fb, int sw, int sh);
 	~Device();
@@ -110,6 +113,8 @@ public:
 	bool BackfaceCulling(Vertex pa_v, Vertex pb_v, Vertex pc_v, Vector4f normal);
 	Vector3f PointInLightSpace(Vector4f worldCoord);
 	//int Check_CVV(Vertex)
+	void SetupShadowCamera(vector<Model> models);
+	
 
 	void PutPixel(int x, int y, UINT32 &color);
 	void PutPixel(int x, int y, float z, UINT32 &color);
