@@ -2,6 +2,8 @@
 #include "geometry.h"
 #include "model.h"
 #include "camera.h"
+#include "my_thread.h"
+//#include <Windows.h>
 
 using namespace std;
 
@@ -11,6 +13,9 @@ typedef unsigned int UINT32;
 #define INTERP(x1,x2,t) ((x1) + ((x2) - (x1))*(t))
 inline int CMID(int x, int min, int max) { return (x < min) ? min : ((x > max) ? max : x); }
 inline float CMIDF(float x, float min, float max) { return (x < min) ? min : ((x > max) ? max : x); }
+
+//const unsigned int THREAD_NUM = 1;
+
 inline Vector4f Vector_Interp(Vector4f p1, Vector4f p2, float t)
 {
 	Vector4f result;
@@ -96,16 +101,19 @@ public:
 	Transform transform, lightTransform;      //变换矩阵
 	int width, height;
 	int shadowWidth, shadowHeight;
+	//int currentY, maxY;
 	UINT32 **framebuffer;     //像素缓存
 	float **zbuffer;          //深度缓存
 	UINT32 background;        //背景颜色
-	Camera my_camera,shadowCamera;         //相机
+	Camera my_camera, shadowCamera;         //相机
 	Light diffuselight, ambientLight, speculaLight;
 	float specularPower;
 	float max_shadowWidth, max_shadowHeight;
 	bool firstTimeSetUpShadowCamera = true;
 	std::vector<std::vector<float>> shadowDepthbuffer;
-	Device(int w, int h, void *fb, int sw, int sh);
+	ThreadPool threadpool;
+
+	Device(int w, int h, void *fb, int sw, int sh,int threadnum);
 	~Device();
 
 	void Clear(int mode);
@@ -114,7 +122,7 @@ public:
 	Vector3f PointInLightSpace(Vector4f worldCoord);
 	//int Check_CVV(Vertex)
 	void SetupShadowCamera(vector<Model> models);
-	
+	//DWORD WINAPI ThreadFunction(LPVOID pM);
 
 	void PutPixel(int x, int y, UINT32 &color);
 	void PutPixel(int x, int y, float z, UINT32 &color);
@@ -131,9 +139,10 @@ public:
 	void DrawTriangleFrame(Vertex A, Vertex B, Vertex C, UINT32 color);
 	void DrawTriangleFlat(Vertex A, Vertex B, Vertex C, UINT32 color);
 	void DrawTriangleFlat(Vertex A, Vertex B, Vertex C);
-	void DrawTriangleTexture(Vertex A, Vertex B, Vertex C,Texture texture);
+	void DrawTriangleTexture(Vertex A, Vertex B, Vertex C, Texture texture);
 	void DrawTriangleToTexture(Vertex A, Vertex B, Vertex C);
 
 	void RenderToShadowTexture(vector<Model> models);
 	void Render(vector<Model> models, int op);
 };
+

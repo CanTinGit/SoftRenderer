@@ -1,9 +1,10 @@
 #include "render.h"
 #include <ctime>
-#include <consoleapi2.h>
 
 int face = 0;
 int modelNum = -1;
+//HANDLE my_mutex;
+//int nowY;
 Vector4i RandomColor(int index)
 {
 	srand((unsigned)time(NULL));
@@ -135,15 +136,14 @@ void Transform::Set_Ortho(float w, float h, float near_z, float far_z)
 void Transform::Set_OrthoOffCenter(float l, float r, float b, float t, float zn, float zf)
 {
 	ortho = Matrix::ZeroMatrix(4);
-	ortho[0][0] = float(2) / r-l;
-	ortho[1][1] = float(2) / t-b;
+	ortho[0][0] = float(2) / r - l;
+	ortho[1][1] = float(2) / t - b;
 	ortho[2][2] = float(1) / (zf - zn);
 	ortho[3][3] = 1;
 	ortho[3][0] = (l + r) / (l - r);
 	ortho[3][1] = (t + b) / (t - b);
 	ortho[3][2] = zn / (zn - zf);
 }
-
 
 void Transform::ScreenToWorld(Vertex& re, float rhw)
 {
@@ -205,7 +205,7 @@ void Light::SetDiffuseLightDir(float x, float y, float z)
 ////////////////
 
 //初始化设备
-Device::Device(int w, int h, void*fb, int sw, int sh)
+Device::Device(int w, int h, void*fb, int sw, int sh,int threadNum)
 {
 	width = w;
 	height = h;
@@ -213,6 +213,7 @@ Device::Device(int w, int h, void*fb, int sw, int sh)
 	shadowHeight = sh;
 	transform.Init(width, height);
 	lightTransform.Init(sw, sh);
+	threadpool.Init(threadNum);
 	int need = sizeof(void*)*(height * 2 + 1024) + width * height * 8;
 	char *ptr = (char*)malloc(need + 64);
 	char *framebuf, *zbuf;
@@ -233,6 +234,7 @@ Device::Device(int w, int h, void*fb, int sw, int sh)
 		zbuffer[j] = (float*)(zbuf + width * 4 * j);
 	}
 	background = 0;
+	threadpool.start();
 }
 
 //释放指针
@@ -271,6 +273,7 @@ void Device::Clear(int mode)
 	mm = shadowDepthbuffer[251][400];
 }
 
+//清空阴影buffer
 void Device::ClearShadowBuf()
 {
 	int x, y;
@@ -304,6 +307,7 @@ bool Device::BackfaceCulling(Vertex p0, Vertex p1, Vertex p2, Vector4f normal)
 	else return false;
 }
 
+//计算世界坐标转换为光照相机屏幕坐标
 Vector3f Device::PointInLightSpace(Vector4f worldCoord)
 {
 	Vector3f result;
@@ -314,18 +318,20 @@ Vector3f Device::PointInLightSpace(Vector4f worldCoord)
 	result.z = temp.z;
 	return result;
 }
+
+//动态设置阴影相机
 float tempMin, tempMax;
 void Device::SetupShadowCamera(vector<Model> models)
 {
 	Vector4f up = { 0,1,0,1 };
-	float max_x = -65535.f, min_x= 65535.f, max_y = -65535.f, min_y = 65535.f, max_z = -65535.f, min_z = 65535.f;
+	float max_x = -65535.f, min_x = 65535.f, max_y = -65535.f, min_y = 65535.f, max_z = -65535.f, min_z = 65535.f;
 	Vector4f position;
-	for (int i = 0; i< models.size();i++)
+	for (int i = 0; i < models.size(); i++)
 	{
-		Model model= models[i];
+		Model model = models[i];
 		lightTransform.world = Matrix::RotateMatrix(model.rotation.x, model.rotation.y, model.rotation.z, model.rotation.w);
 		lightTransform.world = Matrix::TranslateMatrix(model.Position().x, model.Position().y, model.Position().z, lightTransform.world);
-		for (int j = 0; j<model.vertices.size();j++)
+		for (int j = 0; j < model.vertices.size(); j++)
 		{
 			position = lightTransform.world*model.vertices[j].local;
 			if (position.x > max_x)
@@ -353,7 +359,7 @@ void Device::SetupShadowCamera(vector<Model> models)
 				min_z = position.z;
 			}
 		}
-	}//(max_z + min_z)
+	}
 	position.x = 0;
 	position.y = 0;
 	position.z = 0;
@@ -362,7 +368,7 @@ void Device::SetupShadowCamera(vector<Model> models)
 	shadowCamera.SetPosition(distance.x, distance.y, distance.z);
 	shadowCamera.SetCamera(position, up);
 	lightTransform.view = shadowCamera.view;
-	Matrix m;//= lightTransform.world * lightTransform.view;
+	Matrix m;
 	max_x = -65535.f, min_x = 65535.f, max_y = -65535.f, min_y = 65535.f, max_z = -65535.f, min_z = 65535.f;
 	for (int i = 0; i < models.size(); i++)
 	{
@@ -372,7 +378,7 @@ void Device::SetupShadowCamera(vector<Model> models)
 		m = lightTransform.world * lightTransform.view;
 		for (int j = 0; j < model.vertices.size(); j++)
 		{
-			position = m*model.vertices[j].local;
+			position = m * model.vertices[j].local;
 			if (position.x > max_x)
 			{
 				max_x = position.x;
@@ -403,10 +409,7 @@ void Device::SetupShadowCamera(vector<Model> models)
 	position.x = (max_x + min_x) / float(2);
 	position.y = (max_y + min_y) / float(2);
 	position.z = (max_z + min_z) / float(2);
-	//position.x = 0;
-	//position.y = 0;
-	//position.z = 0;
-	Vector4f lookat{ 0,0,0,1 };
+
 	if (firstTimeSetUpShadowCamera)
 	{
 		m = lightTransform.view.Inverse();
@@ -425,23 +428,30 @@ void Device::SetupShadowCamera(vector<Model> models)
 	}
 	else
 	{
-		if (max_x-min_x > max_shadowWidth)
+		if (max_x - min_x > max_shadowWidth)
 		{
 			max_shadowWidth = max_x - min_x;
 		}
-		if (max_y - min_y> max_shadowHeight)
+		if (max_y - min_y > max_shadowHeight)
 		{
 			max_shadowHeight = max_y - min_y;
 		}
 	}
 	float x = (float)4 / (float)3;
-	lightTransform.Set_Ortho(max_shadowWidth,max_shadowHeight , min_z, max_z);
-	//lightTransform.Set_OrthoOffCenter(min_x, max_x, min_y, max_y, min_z, max_z);
+	lightTransform.Set_Ortho(max_shadowWidth, max_shadowHeight, min_z, max_z);
 	cout << min_z << " " << max_z << endl;
 	tempMin = min_z;
 	tempMax = max_z;
 }
 
+void ThreadFunc(Device *device,ScanLineData& scanline,Vector4f pa, Vector4f pb, Vector4f pc, Vector4f pd, Texture texture)
+{
+	device->ProcessScanLineTexture(scanline, pa, pb, pc, pd, texture);
+}
+
+void func(Device *device) {
+	
+}
 
 //像素填充函数
 void Device::PutPixel(int x, int y, UINT32& color)
@@ -606,7 +616,8 @@ void Device::ProcessScanLine(ScanLineData scanline, Vector4f& pa, Vector4f& pb, 
 	}
 }
 
-void Device::ProcessScanLineTexture(ScanLineData scanline, Vector4f& pa, Vector4f& pb, Vector4f& pc, Vector4f& pd, Texture &tex)
+//扫线法（有纹理图）
+void Device::ProcessScanLineTexture(ScanLineData scanline, Vector4f& pa, Vector4f& pb, Vector4f& pc, Vector4f& pd, Texture &tex)  
 {
 	float gradient_s = pa.y != pb.y ? (scanline.currentY - pa.y) / (pb.y - pa.y) : 1;
 	float gradient_e = pc.y != pd.y ? (scanline.currentY - pc.y) / (pd.y - pc.y) : 1;
@@ -643,17 +654,12 @@ void Device::ProcessScanLineTexture(ScanLineData scanline, Vector4f& pa, Vector4
 		float z = INTERP(z1, z2, gradient);
 		float rhw = INTERP(srhw, erhw, gradient);
 
-		if (scanline.currentY == 595)
-		{
-			float m = 1;
-		}
-
 		Vertex re;
 		re.coordinates.x = x;
 		re.coordinates.y = scanline.currentY;
 		re.coordinates.z = z;
 		re.coordinates.w = 1.0f;
-		transform.ScreenToWorld(re, rhw);
+		transform.ScreenToWorld(re, rhw);            //将当前像素坐标逆变换为世界坐标，用于之后计算高光和阴影
 
 		rhw = 1 / rhw;
 		//纹理映射插值
@@ -664,7 +670,6 @@ void Device::ProcessScanLineTexture(ScanLineData scanline, Vector4f& pa, Vector4
 		float diffuse = scanline.diffuse;
 
 		//高光
-		//Vector4f position = Vector_Interp(world_s, world_e, gradient);
 		float specularPower = this->specularPower;
 
 		Vector4f lightDir = speculaLight.position - re.worldCoordinates;
@@ -690,10 +695,9 @@ void Device::ProcessScanLineTexture(ScanLineData scanline, Vector4f& pa, Vector4
 		float zInlight = pixelInlight.z - 0.01f;
 		Vector4i shadow = { 100,100,100,1 };
 		Vector4i colorRGB;
-		//Vector4i colors = { 255,0,0,0 };
 		if (!tex.buf.empty())
 		{
-			colorRGB = tex.Map(u, v);	
+			colorRGB = tex.Map(u, v);
 		}
 		else colorRGB = shadow;
 		Vector4i diffuseColor = colorRGB * diffuse * diffuselight.intensity;
@@ -702,30 +706,20 @@ void Device::ProcessScanLineTexture(ScanLineData scanline, Vector4f& pa, Vector4
 		{
 			float m = pixelInlight.z - shadowDepthbuffer[lightY][lightX];
 
-			//if (m > offset_ && modelNum == 0)
-			//{
-			//	offset_ = m;
-			//	cout << offset_ << endl;
-			//}
-			//if (m>0&&m < offset_min && modelNum == 1)
-			//{
-			//	offset_min = m;
-			//	cout << offset_min << endl;
-			//}
 			if (zInlight > shadowDepthbuffer[lightY][lightX])
 			{
 				diffuseColor = diffuseColor * 0.01f;
 			}
-			//colors = shadow * shadowDepthbuffer[lightY][lightX];
 		}
 		Vector4i specularColor = speculaLight.color * specular;
-		colorRGB = diffuseColor + ambientColor;// +specularColor;
+		colorRGB = diffuseColor + ambientColor;// +specularColor;      //省略高光
 		color = ConvertRGBTOUINT(colorRGB);
 		PutPixel(x, scanline.currentY, z, color);
 	}
 }
 
-void Device::ProcessScanLineToTexture(ScanLineData scanline, Vector4f& pa, Vector4f& pb, Vector4f& pc, Vector4f& pd)
+//将深度渲染为深度图
+void Device::ProcessScanLineToTexture(ScanLineData scanline, Vector4f& pa, Vector4f& pb, Vector4f& pc, Vector4f& pd)    
 {
 	float gradient_s = pa.y != pb.y ? (scanline.currentY - pa.y) / (pb.y - pa.y) : 1;
 	float gradient_e = pc.y != pd.y ? (scanline.currentY - pc.y) / (pd.y - pc.y) : 1;
@@ -749,7 +743,7 @@ void Device::ProcessScanLineToTexture(ScanLineData scanline, Vector4f& pa, Vecto
 
 		colors = shadow * z;
 		color = ConvertRGBTOUINT(colors);
-		if (y>=shadowHeight-5)
+		if (y >= shadowHeight - 5)
 		{
 			float m = 1;
 		}
@@ -757,12 +751,13 @@ void Device::ProcessScanLineToTexture(ScanLineData scanline, Vector4f& pa, Vecto
 		{
 			if (z >= shadowDepthbuffer[y][x]) continue;
 			shadowDepthbuffer[y][x] = z;
-			//framebuffer[y][x] = color;
+			//framebuffer[y][x] = color;        //画深度图
 		}
 	}
 }
 
-void Device::DrawTriangleFrame(Vertex A, Vertex B, Vertex C, UINT32 color)
+//线框渲染
+void Device::DrawTriangleFrame(Vertex A, Vertex B, Vertex C, UINT32 color)             
 {
 	if (A.coordinates.y == B.coordinates.y && B.coordinates.y == C.coordinates.y)
 		return;
@@ -776,7 +771,8 @@ void Device::DrawTriangleFrame(Vertex A, Vertex B, Vertex C, UINT32 color)
 	DrawLine(p2, p3, color);
 }
 
-void Device::DrawTriangleFlat(Vertex A, Vertex B, Vertex C, UINT32 color)
+//平面单色着色
+void Device::DrawTriangleFlat(Vertex A, Vertex B, Vertex C, UINT32 color)        
 {
 	Vector4f pa = A.coordinates;
 	Vector4f pb = B.coordinates;
@@ -851,7 +847,8 @@ void Device::DrawTriangleFlat(Vertex A, Vertex B, Vertex C, UINT32 color)
 	}
 }
 
-void Device::DrawTriangleFlat(Vertex A, Vertex B, Vertex C)
+//平面着色
+void Device::DrawTriangleFlat(Vertex A, Vertex B, Vertex C)           
 {
 	Vector4f pa = A.coordinates;
 	Vector4f pb = B.coordinates;
@@ -974,7 +971,8 @@ void Device::DrawTriangleFlat(Vertex A, Vertex B, Vertex C)
 	}
 }
 
-void Device::DrawTriangleTexture(Vertex A, Vertex B, Vertex C,Texture texture)
+//纹理着色
+void Device::DrawTriangleTexture(Vertex A, Vertex B, Vertex C, Texture texture)
 {
 	if (face == 3)
 	{
@@ -990,7 +988,7 @@ void Device::DrawTriangleTexture(Vertex A, Vertex B, Vertex C,Texture texture)
 	Vector4f n = edge1 ^ edge2;
 	n.normalize();
 	scanline.n = n;
-	scanline.diffuse = diffuselight.DiffuseLightCos(n);
+	scanline.diffuse = diffuselight.DiffuseLightCos(n);         //计算漫反射在当前面的光照强度
 
 	Vector4f pa = A.coordinates;
 	Vector4f pb = B.coordinates;
@@ -1008,11 +1006,6 @@ void Device::DrawTriangleTexture(Vertex A, Vertex B, Vertex C,Texture texture)
 	if (pb.y > pc.y)
 	{
 		swap(pb, pc); swap(B, C); // swap(specularB, specularC);
-	}
-
-	if (face == 8)
-	{
-		float a = 1;
 	}
 
 	if (pa.y == pb.y)
@@ -1041,7 +1034,13 @@ void Device::DrawTriangleTexture(Vertex A, Vertex B, Vertex C,Texture texture)
 			scanline.world_b = C.worldCoordinates;
 			scanline.world_c = A.worldCoordinates;
 			scanline.world_d = C.worldCoordinates;
-			ProcessScanLineTexture(scanline, pb, pc, pa, pc, texture);
+			threadpool.append(std::bind(ThreadFunc,this, scanline, pb, pc, pa, pc, texture));
+			//ProcessScanLineTexture(scanline, pb, pc, pa, pc, texture);  //单线程
+		}
+		bool hasFinished = false;
+		while (hasFinished == false)
+		{
+			hasFinished = threadpool.finishTask();           //判断是否完成所有任务
 		}
 		return;
 	}
@@ -1073,7 +1072,13 @@ void Device::DrawTriangleTexture(Vertex A, Vertex B, Vertex C,Texture texture)
 			scanline.world_b = B.worldCoordinates;
 			scanline.world_c = C.worldCoordinates;
 			scanline.world_d = A.worldCoordinates;
-			ProcessScanLineTexture(scanline, pa, pb, pc, pa, texture);
+			threadpool.append(std::bind(ThreadFunc, this, scanline, pa, pb, pc, pa, texture));
+			//ProcessScanLineTexture(scanline, pa, pb, pc, pa, texture);
+		}
+		bool hasFinished = false;
+		while (hasFinished == false)
+		{
+			hasFinished = threadpool.finishTask();
 		}
 		return;
 	}
@@ -1112,7 +1117,8 @@ void Device::DrawTriangleTexture(Vertex A, Vertex B, Vertex C,Texture texture)
 				scanline.world_b = C.worldCoordinates;
 				scanline.world_c = B.worldCoordinates;
 				scanline.world_d = A.worldCoordinates;
-				ProcessScanLineTexture(scanline, pa, pc, pb, pa, texture);
+				threadpool.append(std::bind(ThreadFunc, this, scanline, pa, pc, pb, pa, texture));
+				//ProcessScanLineTexture(scanline, pa, pc, pb, pa, texture);
 			}
 			else
 			{
@@ -1132,8 +1138,14 @@ void Device::DrawTriangleTexture(Vertex A, Vertex B, Vertex C,Texture texture)
 				scanline.world_b = C.worldCoordinates;
 				scanline.world_c = B.worldCoordinates;
 				scanline.world_d = C.worldCoordinates;
-				ProcessScanLineTexture(scanline, pa, pc, pb, pc, texture);
+				threadpool.append(std::bind(ThreadFunc, this, scanline, pa, pc, pb, pc, texture));
+				//ProcessScanLineTexture(scanline, pa, pc, pb, pc, texture);
 			}
+		}
+		bool hasFinished = false;
+		while (hasFinished == false)
+		{
+			hasFinished = threadpool.finishTask();
 		}
 	}
 	else
@@ -1159,7 +1171,8 @@ void Device::DrawTriangleTexture(Vertex A, Vertex B, Vertex C,Texture texture)
 				scanline.world_b = B.worldCoordinates;
 				scanline.world_c = C.worldCoordinates;
 				scanline.world_d = A.worldCoordinates;
-				ProcessScanLineTexture(scanline, pa, pb, pc, pa, texture);
+				threadpool.append(std::bind(ThreadFunc, this, scanline, pa, pb, pc, pa, texture));
+				//ProcessScanLineTexture(scanline, pa, pb, pc, pa, texture);
 			}
 			else
 			{
@@ -1179,12 +1192,20 @@ void Device::DrawTriangleTexture(Vertex A, Vertex B, Vertex C,Texture texture)
 				scanline.world_b = C.worldCoordinates;
 				scanline.world_c = A.worldCoordinates;
 				scanline.world_d = C.worldCoordinates;
-				ProcessScanLineTexture(scanline, pb, pc, pa, pc, texture);
+				threadpool.append(std::bind(ThreadFunc, this, scanline, pb, pc, pa, pc, texture));
+				//ProcessScanLineTexture(scanline, pb, pc, pa, pc, texture);    
 			}
 		}
+		bool hasFinished = false;
+		while (hasFinished == false)
+		{
+			hasFinished = threadpool.finishTask();
+		}
+
 	}
 }
 
+//得到深度的texture
 void Device::DrawTriangleToTexture(Vertex A, Vertex B, Vertex C)
 {
 	ScanLineData scanline;
@@ -1283,13 +1304,9 @@ void Device::DrawTriangleToTexture(Vertex A, Vertex B, Vertex C)
 void Device::RenderToShadowTexture(vector<Model> models)
 {
 	Vertex re2, re3, re4;
-	//SetupShadowCamera(models);
+
 	for (int j = 0; j < models.size(); j++)
 	{
-		if (j == 1)
-		{
-			j = 1;
-		}
 		Model model = models[j];
 		lightTransform.world = Matrix::RotateMatrix(model.rotation.x, model.rotation.y, model.rotation.z, model.rotation.w);
 		lightTransform.world = Matrix::TranslateMatrix(model.Position().x, model.Position().y, model.Position().z, lightTransform.world);
@@ -1302,18 +1319,12 @@ void Device::RenderToShadowTexture(vector<Model> models)
 			lightTransform.ShadowHomogenize(re3, re3, shadowWidth, shadowHeight);
 			lightTransform.Apply(model.vertices[model.faces[i][2][0]], re4, model.getUV(i, 2));
 			lightTransform.ShadowHomogenize(re4, re4, shadowWidth, shadowHeight);
-			//if (!BackfaceCulling(re2, re3, re4, model.normals[i / 2]))
-			//{
-			//	continue;
-			//}
-			face = i;
 			DrawTriangleToTexture(re2, re3, re4);
 		}
 	}
 }
 
 void Device::Render(vector<Model> models, int op)
-//void Device::Render(Model model, int op)
 {
 	transform.Update();
 	lightTransform.LightUpdate();
@@ -1330,10 +1341,7 @@ void Device::Render(vector<Model> models, int op)
 		Model model = models[j];
 		transform.world = Matrix::RotateMatrix(model.rotation.x, model.rotation.y, model.rotation.z, model.rotation.w);
 		transform.world = Matrix::TranslateMatrix(model.Position().x, model.Position().y, model.Position().z, transform.world);
-		//lightTransform.world = Matrix::RotateMatrix(model.rotation.x, model.rotation.y, model.rotation.z, model.rotation.w);
-		//lightTransform.world = Matrix::TranslateMatrix(model.Position().x, model.Position().y, model.Position().z, lightTransform.world);
 		transform.Update();
-		//lightTransform.LightUpdate();
 		for (int i = 0; i < model.nfaces(); i++)
 		{
 			re2 = model.vertices[model.faces[i][0][0]];
@@ -1347,13 +1355,12 @@ void Device::Render(vector<Model> models, int op)
 			{
 				continue;
 			}
-			face = i;
 			switch (op)
 			{
 				//case 0:DrawTriangleFrame(re2, re3, re4, color[i / 2]); break;
 				//case 1:DrawTriangleFlat(re2, re3, re4, color[i / 2]); break;
 			case 2:DrawTriangleFlat(re2, re3, re4); break;
-			case 3:DrawTriangleTexture(re2, re3, re4,model.texture); break;
+			case 3:DrawTriangleTexture(re2, re3, re4, model.texture); break;
 			}
 		}
 	}

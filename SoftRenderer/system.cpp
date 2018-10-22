@@ -176,10 +176,6 @@ void ShowFPS()
 
 int main()
 {
-	//Mesh mesh(8, 12);
-	//set_mesh_vertices_faces(mesh, all_verticesJson, facesJson);
-
-	//mesh.Rotation = { 0, 0, 0, 0 };
 	vector<Model> models;
 	const TCHAR *title = _T("TinyRender");
 	if (Screen_Init(800, 600, title))
@@ -204,7 +200,7 @@ int main()
 	}
 
 	Vector4f look_at(0, 0, 0, 1), up = { 0,1,0,1 };
-	Device my_device(screen_width, screen_height, screen_fb, 800, 600);
+	Device my_device(screen_width, screen_height, screen_fb, 800, 600,4);
 
 	my_device.diffuselight.SetDiffuseLightDir(1, 1, -1);
 	my_device.diffuselight.SetIntensity(1.0f);
@@ -213,15 +209,9 @@ int main()
 	my_device.speculaLight.SetPosition(-1.f, 0, -1.0f);
 	my_device.speculaLight.SetColor(255, 0, 0);
 	my_device.specularPower = 5.f;
-
-	//my_device.my_camera.SetPosition(100, 100, -100);
-	//my_device.my_camera.SetCamera(look_at, up);
-	//my_device.lightTransform.view = my_device.my_camera.view;
-
-	//my_device.lightTransform.Set_Ortho(8, 6, 1, 500.0f);
 	my_device.SetupShadowCamera(models);
 
-	my_device.my_camera.SetPosition(2, 2, -2);
+	my_device.my_camera.SetPosition(0, 2, -2);
 	my_device.my_camera.SetCamera(look_at, up);
 
 	my_device.transform.view = my_device.my_camera.view;
